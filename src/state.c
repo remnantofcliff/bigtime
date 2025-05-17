@@ -386,16 +386,16 @@ void bt_state_handle_keyevent(struct bt_state state[static 1],
   SDL_UnlockMutex(state->game.input_mutex);
 
   switch (event->scancode) {
-  case SDL_SCANCODE_RIGHT:
+  case SDL_SCANCODE_D:
     input.moving_right = event->down;
     break;
-  case SDL_SCANCODE_LEFT:
+  case SDL_SCANCODE_A:
     input.moving_left = event->down;
     break;
-  case SDL_SCANCODE_DOWN:
+  case SDL_SCANCODE_S:
     input.moving_backwards = event->down;
     break;
-  case SDL_SCANCODE_UP:
+  case SDL_SCANCODE_W:
     input.moving_forwards = event->down;
     break;
   default:
