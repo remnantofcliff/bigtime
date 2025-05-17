@@ -3,6 +3,10 @@
 
 #include <stdint.h>
 
+constexpr uint64_t bt_updates_per_sec = 100;
+constexpr float bt_dt = 1.0f / (float)bt_updates_per_sec;
+constexpr uint64_t bt_time_between_updates = 1'000'000'000 / bt_updates_per_sec;
+
 struct bt_time {
   uint64_t current_time;
   uint64_t last_time;
