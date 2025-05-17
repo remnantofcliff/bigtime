@@ -1,0 +1,2 @@
+leak:/usr/lib/libSDL3.so
+leak:pthread_once
