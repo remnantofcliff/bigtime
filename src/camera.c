@@ -1,8 +1,6 @@
 #include "camera.h"
 #include "time.h"
 
-#include <SDL3/SDL_log.h>
-
 constexpr float movement_speed = 1.0f * bt_dt;
 
 void bt_camera_update(struct bt_camera camera[static 1],
