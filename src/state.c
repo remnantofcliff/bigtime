@@ -1,6 +1,7 @@
 #include "state.h"
 #include "helpers.h"
 #include "math.h"
+#include <SDL3/SDL_timer.h>
 #include <stddef.h>
 
 // clang-format off
@@ -379,23 +380,44 @@ void bt_state_deinit(struct bt_state state[static 1]) {
 }
 
 void bt_state_handle_keyevent(struct bt_state state[static 1],
-                              SDL_KeyboardEvent const *event) {
+                              SDL_KeyboardEvent const event[static 1]) {
+  SDL_LockMutex(state->game.input_mutex);
+  struct bt_input input = state->game.input;
+  SDL_UnlockMutex(state->game.input_mutex);
+
   switch (event->scancode) {
   case SDL_SCANCODE_RIGHT:
-    state->game.input.moving_right = event->down;
+    input.moving_right = event->down;
     break;
   case SDL_SCANCODE_LEFT:
-    state->game.input.moving_left = event->down;
+    input.moving_left = event->down;
     break;
   case SDL_SCANCODE_DOWN:
-    state->game.input.moving_backwards = event->down;
+    input.moving_backwards = event->down;
     break;
   case SDL_SCANCODE_UP:
-    state->game.input.moving_forwards = event->down;
+    input.moving_forwards = event->down;
     break;
   default:
     break;
   }
+
+  SDL_LockMutex(state->game.input_mutex);
+  {
+    state->game.input = input;
+  }
+  SDL_UnlockMutex(state->game.input_mutex);
+}
+
+static void extrapolate_render_infos(struct bt_render_info infos[static 2],
+                                     struct bt_render_info out[static 1],
+                                     uint64_t current_time) {
+  float t = (float)(current_time - infos[1].time) /
+            (float)(infos[0].time - infos[1].time);
+
+  out->time = current_time;
+  out->camera_pos = bt_vec3_lerp(infos[1].camera_pos, infos[0].camera_pos, t);
+  out->camera_dir = bt_vec3_lerp(infos[1].camera_dir, infos[0].camera_dir, t);
 }
 
 bool bt_state_render(struct bt_state state[static 1]) {
@@ -413,18 +435,21 @@ bool bt_state_render(struct bt_state state[static 1]) {
   struct bt_render_info infos[2] = {};
   bt_game_get_render_info(&state->game, infos);
 
+  struct bt_render_info extrapolated = {};
+  extrapolate_render_infos(infos, &extrapolated, SDL_GetTicksNS());
+
   struct bt_mat4 proj = {};
   bt_perspective(&proj, bt_pi * 0.25f, (float)width / (float)height, 0.1f,
                  100.0f);
 
   struct bt_mat4 view = {};
-  bt_look_to(&view, &infos[0].camera_pos, &infos[1].camera_dir,
+  bt_look_to(&view, &extrapolated.camera_pos, &extrapolated.camera_dir,
              &(struct bt_vec3){{
                  [1] = 1.0f,
              }});
 
   struct bt_mat4 proj_view = {};
-  bt_mat4_mul_mat4(&proj, &view, &proj_view);
+  bt_mat4_mul(&proj, &view, &proj_view);
 
   if (texture != nullptr) {
     SDL_GPURenderPass *render_pass =

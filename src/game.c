@@ -1,5 +1,6 @@
 #include "game.h"
 #include "helpers.h"
+#include <SDL3/SDL_timer.h>
 
 static void init(struct bt_game game[static 1]) {
   game->camera = bt_default_camera;
@@ -7,13 +8,16 @@ static void init(struct bt_game game[static 1]) {
 }
 
 static void update(struct bt_game game[static 1]) {
-  bt_camera_update(&game->camera, &game->input);
+  SDL_LockMutex(game->input_mutex);
+  struct bt_input input = game->input;
+  SDL_UnlockMutex(game->input_mutex);
+  bt_camera_update(&game->camera, &input);
   bt_time_update(&game->time);
 }
 
 static void set_render_info(struct bt_game game[static 1]) {
   struct bt_render_info render_info = {};
-  render_info.time = game->time.current_time;
+  render_info.time = SDL_GetTicksNS();
   render_info.camera_dir = game->camera.dir;
   render_info.camera_pos = game->camera.eye;
   SDL_LockMutex(game->render_info_mutex);
@@ -63,8 +67,7 @@ bool bt_game_run(struct bt_game game[static 1]) {
     BT_LOG_SDL_FAIL("Failed to create input mutex");
     return false;
   }
-  game->thread =
-      SDL_CreateThread(update_thread_fn, "Update thread", game);
+  game->thread = SDL_CreateThread(update_thread_fn, "Update thread", game);
   if (game->thread == nullptr) {
     BT_LOG_SDL_FAIL("Failed to create update thread");
     return false;
@@ -87,4 +90,3 @@ void bt_game_get_render_info(struct bt_game const game[static 1],
   }
   SDL_UnlockMutex(game->render_info_mutex);
 }
-

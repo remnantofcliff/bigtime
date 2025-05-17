@@ -17,15 +17,13 @@ struct bt_state {
   SDL_GPUBuffer *draw_buffer;
   SDL_GPUGraphicsPipeline *graphics_pipeline;
   struct bt_game game;
-  uint32_t width;
-  uint32_t height;
 };
 
 bool bt_state_init(struct bt_state state[static 1]);
 void bt_state_deinit(struct bt_state state[static 1]);
 
 void bt_state_handle_keyevent(struct bt_state state[static 1],
-                              SDL_KeyboardEvent const *event);
+                              SDL_KeyboardEvent const event[static 1]);
 bool bt_state_render(struct bt_state state[static 1]);
 void bt_state_update(struct bt_state state[static 1]);
 
