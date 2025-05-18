@@ -103,6 +103,14 @@ float bt_vec2_sum(struct bt_vec2 a) {
   return sum;
 }
 
+struct bt_vec3 bt_vec3_add(struct bt_vec3 a, struct bt_vec3 b) {
+  typeof(a) result = {};
+  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+    result.arr[i] = a.arr[i] + b.arr[i];
+  }
+  return result;
+}
+
 float bt_vec3_dot(struct bt_vec3 a, struct bt_vec3 b) {
   return bt_vec3_sum(bt_vec3_mul(a, b));
 }
@@ -149,7 +157,7 @@ struct bt_vec3 bt_vec3_normalize(struct bt_vec3 a) {
 
 struct bt_vec3 bt_vec3_normalize_or_zero(struct bt_vec3 a) {
   float recip_len = bt_recip(bt_vec3_length(a));
-  if (isfinite(recip_len) && recip_len > 0.0f) {
+  if (!isfinite(recip_len) && recip_len > 0.0f) {
     return (typeof(a)){};
   }
 

@@ -60,6 +60,7 @@ struct bt_vec2 bt_vec2_normalize(struct bt_vec2 a);
 struct bt_vec2 bt_vec2_normalize_or_zero(struct bt_vec2 a);
 float bt_vec2_sum(struct bt_vec2 a);
 
+struct bt_vec3 bt_vec3_add(struct bt_vec3 a, struct bt_vec3 b);
 float bt_vec3_dot(struct bt_vec3 a, struct bt_vec3 b);
 float bt_vec3_length(struct bt_vec3 a);
 struct bt_vec3 bt_vec3_lerp(struct bt_vec3 a, struct bt_vec3 b, float t);
