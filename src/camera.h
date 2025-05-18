@@ -6,16 +6,13 @@
 
 struct bt_camera {
   struct bt_vec3 eye;
-  /*
-   * Should be normalized
-   */
   struct bt_vec3 dir;
+  float yaw;
+  float pitch;
 };
 
 constexpr struct bt_camera bt_default_camera = {
-    .dir = {{
-        [2] = 1.0f,
-    }},
+    .yaw = bt_pi,
 };
 
 void bt_camera_update(struct bt_camera camera[static 1],

@@ -1,4 +1,5 @@
 #include "state.h"
+#include "event_queue.h"
 #include "helpers.h"
 #include "math.h"
 #include <SDL3/SDL_timer.h>
@@ -335,13 +336,14 @@ bool bt_state_init(struct bt_state state[static 1]) {
                   .num_color_targets = 1,
               },
       });
-
   if (state->graphics_pipeline == nullptr) {
     BT_LOG_SDL_FAIL("Failed to create graphics pipeline");
     return false;
   }
 
-  bt_game_run(&state->game);
+  if (!bt_game_run(&state->game)) {
+    return false;
+  }
 
   return true;
 }
@@ -381,32 +383,57 @@ void bt_state_deinit(struct bt_state state[static 1]) {
 
 void bt_state_handle_keyevent(struct bt_state state[static 1],
                               SDL_KeyboardEvent const event[static 1]) {
-  SDL_LockMutex(state->game.input_mutex);
-  struct bt_input input = state->game.input;
-  SDL_UnlockMutex(state->game.input_mutex);
-
+  enum bt_key key = {};
+  bool key_used = false;
   switch (event->scancode) {
-  case SDL_SCANCODE_D:
-    input.moving_right = event->down;
-    break;
   case SDL_SCANCODE_A:
-    input.moving_left = event->down;
+    key = bt_key_a;
+    key_used = true;
+    break;
+  case SDL_SCANCODE_D:
+    key = bt_key_d;
+    key_used = true;
     break;
   case SDL_SCANCODE_S:
-    input.moving_backwards = event->down;
+    key = bt_key_s;
+    key_used = true;
     break;
   case SDL_SCANCODE_W:
-    input.moving_forwards = event->down;
+    key = bt_key_w;
+    key_used = true;
+    break;
+  case SDL_SCANCODE_RIGHT:
+    key = bt_key_right;
+    key_used = true;
+    break;
+  case SDL_SCANCODE_LEFT:
+    key = bt_key_left;
+    key_used = true;
+    break;
+  case SDL_SCANCODE_DOWN:
+    key = bt_key_down;
+    key_used = true;
+    break;
+  case SDL_SCANCODE_UP:
+    key = bt_key_up;
+    key_used = true;
     break;
   default:
     break;
   }
 
-  SDL_LockMutex(state->game.input_mutex);
-  {
-    state->game.input = input;
+  if (!key_used) {
+    return;
   }
-  SDL_UnlockMutex(state->game.input_mutex);
+
+  bt_event_queue_add(&state->game.event_queue, &(struct bt_event){
+                                                   .type = bt_event_type_key,
+                                                   .key =
+                                                       {
+                                                           .code = key,
+                                                           .down = event->down,
+                                                       },
+                                               });
 }
 
 static void extrapolate_render_infos(struct bt_render_info infos[static 2],

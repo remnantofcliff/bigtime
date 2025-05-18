@@ -2,10 +2,16 @@
 #define BT_INPUT_H
 
 struct bt_input {
-  bool moving_forwards : 1;
-  bool moving_backwards : 1;
-  bool moving_left : 1;
-  bool moving_right : 1;
+  struct {
+    bool moving_forwards : 1;
+    bool moving_backwards : 1;
+    bool moving_left : 1;
+    bool moving_right : 1;
+    bool view_moving_up : 1;
+    bool view_moving_down : 1;
+    bool view_moving_left : 1;
+    bool view_moving_right : 1;
+  } kbd;
 };
 
 #endif

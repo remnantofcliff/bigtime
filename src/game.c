@@ -41,6 +41,44 @@ static int update_thread_fn(void *data) {
   while (SDL_GetAtomicU32(&game->running)) {
     bt_time_start_loop(&game->time);
 
+    struct bt_event event_buffer[SDL_arraysize(game->event_queue.events)] = {};
+    uint16_t ev_count = bt_event_queue_get(&game->event_queue, event_buffer);
+
+    for (uint16_t i = 0; i < ev_count; ++i) {
+      switch (event_buffer[i].type) {
+      case bt_event_type_key:
+        switch (event_buffer[i].key.code) {
+        case bt_key_w:
+          game->input.kbd.moving_forwards = event_buffer[i].key.down;
+          break;
+        case bt_key_a:
+          game->input.kbd.moving_left = event_buffer[i].key.down;
+          break;
+        case bt_key_s:
+          game->input.kbd.moving_backwards = event_buffer[i].key.down;
+          break;
+        case bt_key_d:
+          game->input.kbd.moving_right = event_buffer[i].key.down;
+          break;
+        case bt_key_up:
+          game->input.kbd.view_moving_up = event_buffer[i].key.down;
+          break;
+        case bt_key_down:
+          game->input.kbd.view_moving_down = event_buffer[i].key.down;
+          break;
+        case bt_key_left:
+          game->input.kbd.view_moving_left = event_buffer[i].key.down;
+          break;
+        case bt_key_right:
+          game->input.kbd.view_moving_right = event_buffer[i].key.down;
+          break;
+        default:
+        }
+        break;
+      default:
+      }
+    }
+
     while (bt_time_should_update(&game->time)) {
       update(game);
       set_render_info(game);
@@ -57,6 +95,9 @@ static int update_thread_fn(void *data) {
 bool bt_game_run(struct bt_game game[static 1]) {
   SDL_SetAtomicU32(&game->running, 1);
 
+  if (!bt_event_queue_init(&game->event_queue)) {
+    return false;
+  }
   game->render_info_mutex = SDL_CreateMutex();
   if (game->render_info_mutex == nullptr) {
     BT_LOG_SDL_FAIL("Failed to create render info mutex");

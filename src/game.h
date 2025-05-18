@@ -4,6 +4,7 @@
 #include "camera.h"
 #include "input.h"
 #include "time.h"
+#include "event_queue.h"
 #include <SDL3/SDL_mutex.h>
 
 struct bt_render_info {
@@ -13,6 +14,7 @@ struct bt_render_info {
 };
 
 struct bt_game {
+  struct bt_event_queue event_queue;
   SDL_Thread *thread;
   SDL_Mutex *input_mutex;
   SDL_Mutex *render_info_mutex;
