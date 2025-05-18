@@ -17,6 +17,7 @@ static const unsigned char bt_fragment_spirv[] = {
 struct bt_vertex_data {
   float pos[3];
   float uv[2];
+  float color[3];
 };
 
 constexpr struct bt_vertex_data bt_vertex_data_array[4] = {
@@ -32,6 +33,12 @@ constexpr struct bt_vertex_data bt_vertex_data_array[4] = {
                 0.0,
                 0.0,
             },
+        .color =
+            {
+                1.0,
+                1.0,
+                1.0,
+            },
     },
     {
         .pos =
@@ -44,6 +51,12 @@ constexpr struct bt_vertex_data bt_vertex_data_array[4] = {
             {
                 1.0,
                 0.0,
+            },
+        .color =
+            {
+                1.0,
+                1.0,
+                1.0,
             },
     },
     {
@@ -58,6 +71,12 @@ constexpr struct bt_vertex_data bt_vertex_data_array[4] = {
                 0.0,
                 1.0,
             },
+        .color =
+            {
+                1.0,
+                1.0,
+                1.0,
+            },
     },
     {
         .pos =
@@ -68,6 +87,12 @@ constexpr struct bt_vertex_data bt_vertex_data_array[4] = {
             },
         .uv =
             {
+                1.0,
+                1.0,
+            },
+        .color =
+            {
+                1.0,
                 1.0,
                 1.0,
             },
@@ -314,8 +339,15 @@ bool bt_state_init(struct bt_state state[static 1]) {
                               .offset =
                                   offsetof(typeof(*bt_vertex_data_array), uv),
                           },
+                          {
+                              .location = 2,
+                              .buffer_slot = 0,
+                              .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+                              .offset =
+                                  offsetof(typeof(*bt_vertex_data_array), color),
+                          },
                       },
-                  .num_vertex_attributes = 2,
+                  .num_vertex_attributes = 3,
               },
           .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
           .rasterizer_state =
