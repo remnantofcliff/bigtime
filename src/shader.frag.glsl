@@ -1,9 +1,91 @@
-#version 450 core
+#version 460 core
 
-layout (location = 0) in vec2 in_uv;
-layout (location = 1) in vec3 in_color;
-layout (location = 0) out vec4 out_color;
+struct bt_font_curve {
+    vec2 p0;
+    vec2 p1;
+    vec2 p2;
+};
+
+struct bt_font_curve_info {
+    uint start;
+    uint count;
+};
+
+layout(std140, set = 2, binding = 0) readonly buffer bt_font_curves {
+    bt_font_curve curves[];
+};
+
+layout(std140, set = 2, binding = 1) readonly buffer bt_font_curve_infos {
+    bt_font_curve_info curve_infos[];
+};
+
+layout(location = 0) in vec2 in_uv;
+layout(location = 1) in vec3 in_color;
+layout(location = 2) flat in uint in_char;
+layout(location = 0) out vec4 out_color;
+
+float compute_coverage(float inverse_diameter, vec2 p0, vec2 p1, vec2 p2) {
+    if (p0.y > 0 && p1.y > 0 && p2.y > 0) return 0.0;
+    if (p0.y < 0 && p1.y < 0 && p2.y < 0) return 0.0;
+
+    vec2 a = p0 - 2.0 * p1 + p2;
+    vec2 b = p0 - p1;
+    vec2 c = p0;
+
+    float t0;
+    float t1;
+
+    if (abs(a.y) >= 1e-5) {
+        float radicand = b.y * b.y - a.y * c.y;
+        if (radicand <= 0) return 0.0;
+
+        float s = sqrt(radicand);
+        t0 = (b.y - s) / a.y;
+        t1 = (b.y + s) / a.y;
+    } else {
+        float t = p0.y / (p0.y - p2.y);
+        if (p0.y < p2.y) {
+            t0 = -1.0;
+            t1 = t;
+        } else {
+            t0 = t;
+            t1 = -1.0;
+        }
+    }
+
+    float alpha = 0.0;
+
+    if (t0 >= 0.0 && t0 < 1.0) {
+        float x = (a.x * t0 - 2.0 * b.x) * t0 + c.x;
+        alpha += clamp(x * inverse_diameter + 0.5, 0, 1);
+    }
+
+    if (t1 >= 0.0 && t1 < 1.0) {
+        float x = (a.x * t1 - 2.0 * b.x) * t1 + c.x;
+        alpha -= clamp(x * inverse_diameter + 0.5, 0, 1);
+    }
+
+    return alpha;
+}
 
 void main() {
-  out_color = vec4(in_color, 1.0);
+    vec2 uv = in_uv;
+    vec3 color = in_color;
+    uint char = in_char;
+
+    float alpha = 0.0;
+    vec2 inverse_diameter = 1.0 / (fwidth(uv));
+    bt_font_curve_info info = curve_infos[char];
+    for (uint i = info.start; i < info.start + info.count; ++i) {
+        bt_font_curve curve = curves[i];
+        vec2 p0 = curve.p0 - uv;
+        vec2 p1 = curve.p1 - uv;
+        vec2 p2 = curve.p2 - uv;
+
+        alpha += compute_coverage(inverse_diameter.x, p0, p1, p2);
+    }
+
+    alpha = clamp(alpha, 0.0, 1.0);
+
+    out_color = vec4(color * (1.0 - alpha), 1.0);
 }

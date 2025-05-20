@@ -16,7 +16,6 @@ struct bt_render_info {
 struct bt_game {
   struct bt_event_queue event_queue;
   SDL_Thread *thread;
-  SDL_Mutex *input_mutex;
   SDL_Mutex *render_info_mutex;
   struct bt_render_info render_infos[2];
   struct bt_time time;

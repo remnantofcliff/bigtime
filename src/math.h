@@ -54,7 +54,7 @@ float bt_vec2_length(struct bt_vec2 a);
 struct bt_vec2 bt_vec2_mul(struct bt_vec2 a, struct bt_vec2 b);
 struct bt_vec2 bt_vec2_mulf(struct bt_vec2 a, float b);
 /*
- * Length of a needs to be > 0.0f or you will get garbage results
+ * Length needs to be > 0.0f or you will get garbage results
  */
 struct bt_vec2 bt_vec2_normalize(struct bt_vec2 a);
 struct bt_vec2 bt_vec2_normalize_or_zero(struct bt_vec2 a);
@@ -67,6 +67,9 @@ struct bt_vec3 bt_vec3_lerp(struct bt_vec3 a, struct bt_vec3 b, float t);
 struct bt_vec3 bt_vec3_mul(struct bt_vec3 a, struct bt_vec3 b);
 struct bt_vec3 bt_vec3_mulf(struct bt_vec3 a, float b);
 struct bt_vec3 bt_vec3_negate(struct bt_vec3 a);
+/*
+ * Length needs to be > 0.0f or you will get garbage results
+ */
 struct bt_vec3 bt_vec3_normalize(struct bt_vec3 a);
 struct bt_vec3 bt_vec3_normalize_or_zero(struct bt_vec3 a);
 float bt_vec3_sum(struct bt_vec3 a);

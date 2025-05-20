@@ -37,19 +37,24 @@ FLAGS := -Wall \
 	-Wswitch-default \
 	-MMD \
 	-MP \
-	--embed-dir=${BUILD_EMBED}
+	--embed-dir=${BUILD_EMBED} \
+	--embed-dir=data
+SHADER_FLAGS :=
 LINKER_FLAGS := -lSDL3
 
 REQUIREMENTS := Makefile ${SPIRV}
 
 ifeq (${type}, default)
 FLAGS := ${FLAGS} -g -fsanitize=address,undefined -D GU_DEBUG
+SHADER_FLAGS := -g
 endif
 ifeq (${type}, debug)
 FLAGS := ${FLAGS} -g -D GU_DEBUG
+SHADER_FLAGS := -g
 endif
 ifeq (${type}, release)
-FLAGS := ${FLAGS} -O3 -flto
+FLAGS := ${FLAGS} -O3 -flto -DNDEBUG
+SHADER_FLAGS :=
 endif
 
 GAME := ${BUILD_BIN}/bigtime

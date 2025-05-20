@@ -12,6 +12,8 @@ struct bt_state {
   SDL_GPUShader *vertex_shader;
   SDL_GPUShader *fragment_shader;
   SDL_GPUTransferBuffer *transfer_buffer;
+  SDL_GPUBuffer *font_curve_buffer;
+  SDL_GPUBuffer *font_curve_info_buffer;
   SDL_GPUBuffer *vertex_buffer;
   SDL_GPUBuffer *index_buffer;
   SDL_GPUBuffer *draw_buffer;

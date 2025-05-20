@@ -8,9 +8,7 @@ static void init(struct bt_game game[static 1]) {
 }
 
 static void update(struct bt_game game[static 1]) {
-  SDL_LockMutex(game->input_mutex);
   struct bt_input input = game->input;
-  SDL_UnlockMutex(game->input_mutex);
   bt_camera_update(&game->camera, &input);
   bt_time_update(&game->time);
 }
@@ -29,7 +27,7 @@ static void set_render_info(struct bt_game game[static 1]) {
 }
 
 static void deinit(struct bt_game game[static 1]) {
-  SDL_DestroyMutex(game->input_mutex);
+  bt_event_queue_deinit(&game->event_queue);
   SDL_DestroyMutex(game->render_info_mutex);
 }
 
@@ -101,11 +99,6 @@ bool bt_game_run(struct bt_game game[static 1]) {
   game->render_info_mutex = SDL_CreateMutex();
   if (game->render_info_mutex == nullptr) {
     BT_LOG_SDL_FAIL("Failed to create render info mutex");
-    return false;
-  }
-  game->input_mutex = SDL_CreateMutex();
-  if (game->render_info_mutex == nullptr) {
-    BT_LOG_SDL_FAIL("Failed to create input mutex");
     return false;
   }
   game->thread = SDL_CreateThread(update_thread_fn, "Update thread", game);

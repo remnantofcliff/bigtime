@@ -6,102 +6,79 @@
 #include <stddef.h>
 
 // clang-format off
-static const unsigned char bt_vertex_spirv[] = {
+unsigned char const bt_vertex_spirv[] = {
 #embed <shader.vert.spv>
 };
-static const unsigned char bt_fragment_spirv[] = {
+unsigned char const bt_fragment_spirv[] = {
 #embed <shader.frag.spv>
 };
+
+alignas(16) unsigned char const bt_font_curves_bytes[] = {
+#embed <glyph_buffer.data>
+};
+alignas(16) unsigned char const bt_font_curve_info_bytes[] = {
+#embed <info_buffer.data>
+};
 // clang-format on
+
+struct bt_font_curve {
+  alignas(16) float p0[2];
+  float p1[2];
+  float p2[2];
+};
+
+struct bt_font_curve_info {
+  alignas(16) uint32_t start;
+  uint32_t count;
+};
+
+struct bt_font_metrics {
+  int16_t x_min;
+  int16_t y_min;
+  int16_t x_max;
+  int16_t y_max;
+  uint16_t advance;
+};
+
+// static struct bt_font_metrics const *bt_font_metrics =
+//     (struct bt_font_metrics const *)bt_font_metrics_bytes;
+// constexpr uint32_t bt_font_info_len = U'\x10ffff';
 
 struct bt_vertex_data {
   float pos[3];
   float uv[2];
   float color[3];
+  uint32_t _char;
 };
 
-constexpr struct bt_vertex_data bt_vertex_data_array[4] = {
+constexpr struct bt_vertex_data bt_vertex_data_array[] = {
     {
-        .pos =
-            {
-                -1.0,
-                1.0,
-                0.0,
-            },
-        .uv =
-            {
-                0.0,
-                0.0,
-            },
-        .color =
-            {
-                1.0,
-                1.0,
-                1.0,
-            },
+        .pos = {-1.0, 1.0, 0.0},
+        .uv = {0.0, 0.0},
+        .color = {1.0, 1.0, 1.0},
+        ._char = U'a',
     },
     {
-        .pos =
-            {
-                1.0,
-                1.0,
-                0.0,
-            },
-        .uv =
-            {
-                1.0,
-                0.0,
-            },
-        .color =
-            {
-                1.0,
-                1.0,
-                1.0,
-            },
+        .pos = {1.0, 1.0, 0.0},
+        .uv = {1.0, 0.0},
+        .color = {1.0, 1.0, 1.0},
+        ._char = U'a',
     },
     {
-        .pos =
-            {
-                -1.0,
-                -1.0,
-                0.0,
-            },
-        .uv =
-            {
-                0.0,
-                1.0,
-            },
-        .color =
-            {
-                1.0,
-                1.0,
-                1.0,
-            },
+        .pos = {-1.0, -1.0, 0.0},
+        .uv = {0.0, 1.0},
+        .color = {1.0, 1.0, 1.0},
+        ._char = U'a',
     },
     {
-        .pos =
-            {
-                1.0,
-                -1.0,
-                0.0,
-            },
-        .uv =
-            {
-                1.0,
-                1.0,
-            },
-        .color =
-            {
-                1.0,
-                1.0,
-                1.0,
-            },
+        .pos = {1.0, -1.0, 0.0},
+        .uv = {1.0, 1.0},
+        .color = {1.0, 1.0, 1.0},
+        ._char = U'a',
     },
 };
 
-constexpr uint32_t bt_index_data_array[] = {
-    0, 1, 2, 1, 3, 2,
-};
+constexpr uint32_t bt_index_data_array[] = {0, 1, 2, 1, 3, 2};
 
 constexpr SDL_GPUIndexedIndirectDrawCommand bt_draw_data_array[] = {
     {
@@ -118,11 +95,33 @@ static bool bt_create_buffers(struct bt_state state[static 1]) {
   state->transfer_buffer = SDL_CreateGPUTransferBuffer(
       state->gpu,
       &(SDL_GPUTransferBufferCreateInfo){
-          .size = sizeof(bt_vertex_data_array) + sizeof(bt_index_data_array) +
+          .size = sizeof(bt_font_curves_bytes) +
+                  sizeof(bt_font_curve_info_bytes) +
+                  sizeof(bt_vertex_data_array) + sizeof(bt_index_data_array) +
                   sizeof(bt_draw_data_array),
       });
   if (state->transfer_buffer == nullptr) {
     BT_LOG_SDL_FAIL("Failed to create transfer buffer");
+    return false;
+  }
+
+  state->font_curve_buffer = SDL_CreateGPUBuffer(
+      state->gpu, &(SDL_GPUBufferCreateInfo){
+                      .usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+                      .size = sizeof(bt_font_curves_bytes),
+                  });
+  if (state->font_curve_buffer == nullptr) {
+    BT_LOG_SDL_FAIL("Failed to create font curve buffer");
+    return false;
+  }
+
+  state->font_curve_info_buffer = SDL_CreateGPUBuffer(
+      state->gpu, &(SDL_GPUBufferCreateInfo){
+                      .usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+                      .size = sizeof(bt_font_curve_info_bytes),
+                  });
+  if (state->font_curve_info_buffer == nullptr) {
+    BT_LOG_SDL_FAIL("Failed to create font curve buffer");
     return false;
   }
 
@@ -168,6 +167,10 @@ static bool bt_initialize_transfer_buffer(struct bt_state state[static 1]) {
     return false;
   }
 
+  SDL_memcpy(p, bt_font_curves_bytes, sizeof(bt_font_curves_bytes));
+  p += sizeof(bt_font_curves_bytes);
+  SDL_memcpy(p, bt_font_curve_info_bytes, sizeof(bt_font_curve_info_bytes));
+  p += sizeof(bt_font_curve_info_bytes);
   SDL_memcpy(p, bt_vertex_data_array, sizeof(bt_vertex_data_array));
   p += sizeof(bt_vertex_data_array);
   SDL_memcpy(p, bt_index_data_array, sizeof(bt_index_data_array));
@@ -193,9 +196,34 @@ static bool bt_initialize_buffers(struct bt_state state[static 1]) {
 
   SDL_GPUCopyPass *const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
 
+  uint32_t current_offset = 0;
   SDL_UploadToGPUBuffer(copy_pass,
                         &(SDL_GPUTransferBufferLocation){
                             .transfer_buffer = state->transfer_buffer,
+                        },
+                        &(SDL_GPUBufferRegion){
+                            .buffer = state->font_curve_buffer,
+                            .offset = current_offset,
+                            .size = sizeof(bt_font_curves_bytes),
+                        },
+                        true);
+  current_offset += sizeof(bt_font_curves_bytes);
+  SDL_UploadToGPUBuffer(copy_pass,
+                        &(SDL_GPUTransferBufferLocation){
+                            .transfer_buffer = state->transfer_buffer,
+                            .offset = current_offset,
+                        },
+                        &(SDL_GPUBufferRegion){
+                            .buffer = state->font_curve_info_buffer,
+                            .offset = 0,
+                            .size = sizeof(bt_font_curve_info_bytes),
+                        },
+                        true);
+  current_offset += sizeof(bt_font_curve_info_bytes);
+  SDL_UploadToGPUBuffer(copy_pass,
+                        &(SDL_GPUTransferBufferLocation){
+                            .transfer_buffer = state->transfer_buffer,
+                            .offset = current_offset,
                         },
                         &(SDL_GPUBufferRegion){
                             .buffer = state->vertex_buffer,
@@ -203,10 +231,11 @@ static bool bt_initialize_buffers(struct bt_state state[static 1]) {
                             .size = sizeof(bt_vertex_data_array),
                         },
                         true);
+  current_offset += sizeof(bt_vertex_data_array);
   SDL_UploadToGPUBuffer(copy_pass,
                         &(SDL_GPUTransferBufferLocation){
                             .transfer_buffer = state->transfer_buffer,
-                            .offset = sizeof(bt_vertex_data_array),
+                            .offset = current_offset,
                         },
                         &(SDL_GPUBufferRegion){
                             .buffer = state->index_buffer,
@@ -214,18 +243,18 @@ static bool bt_initialize_buffers(struct bt_state state[static 1]) {
                             .size = sizeof(bt_index_data_array),
                         },
                         true);
-  SDL_UploadToGPUBuffer(
-      copy_pass,
-      &(SDL_GPUTransferBufferLocation){
-          .transfer_buffer = state->transfer_buffer,
-          .offset = sizeof(bt_vertex_data_array) + sizeof(bt_index_data_array),
-      },
-      &(SDL_GPUBufferRegion){
-          .buffer = state->draw_buffer,
-          .offset = 0,
-          .size = sizeof(bt_draw_data_array),
-      },
-      true);
+  current_offset += sizeof(bt_index_data_array);
+  SDL_UploadToGPUBuffer(copy_pass,
+                        &(SDL_GPUTransferBufferLocation){
+                            .transfer_buffer = state->transfer_buffer,
+                            .offset = current_offset,
+                        },
+                        &(SDL_GPUBufferRegion){
+                            .buffer = state->draw_buffer,
+                            .offset = 0,
+                            .size = sizeof(bt_draw_data_array),
+                        },
+                        true);
 
   SDL_EndGPUCopyPass(copy_pass);
 
@@ -267,6 +296,7 @@ static bool bt_create_shaders(struct bt_state state[static 1]) {
                       .entrypoint = "main",
                       .format = SDL_GPU_SHADERFORMAT_SPIRV,
                       .stage = SDL_GPU_SHADERSTAGE_FRAGMENT,
+                      .num_storage_buffers = 2,
                   });
   if (state->fragment_shader == nullptr) {
     BT_LOG_SDL_FAIL("Failed to create fragment shader");
@@ -343,11 +373,18 @@ bool bt_state_init(struct bt_state state[static 1]) {
                               .location = 2,
                               .buffer_slot = 0,
                               .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-                              .offset =
-                                  offsetof(typeof(*bt_vertex_data_array), color),
+                              .offset = offsetof(typeof(*bt_vertex_data_array),
+                                                 color),
+                          },
+                          {
+                              .location = 3,
+                              .buffer_slot = 0,
+                              .format = SDL_GPU_VERTEXELEMENTFORMAT_UINT,
+                              .offset = offsetof(typeof(*bt_vertex_data_array),
+                                                 _char),
                           },
                       },
-                  .num_vertex_attributes = 3,
+                  .num_vertex_attributes = 4,
               },
           .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
           .rasterizer_state =
@@ -391,6 +428,12 @@ void bt_state_deinit(struct bt_state state[static 1]) {
   }
   if (state->vertex_shader != nullptr) {
     SDL_ReleaseGPUShader(state->gpu, state->vertex_shader);
+  }
+  if (state->font_curve_buffer != nullptr) {
+    SDL_ReleaseGPUBuffer(state->gpu, state->font_curve_buffer);
+  }
+  if (state->font_curve_buffer != nullptr) {
+    SDL_ReleaseGPUBuffer(state->gpu, state->font_curve_info_buffer);
   }
   if (state->vertex_buffer != nullptr) {
     SDL_ReleaseGPUBuffer(state->gpu, state->vertex_buffer);
@@ -480,6 +523,8 @@ static void extrapolate_render_infos(struct bt_render_info infos[static 2],
 }
 
 bool bt_state_render(struct bt_state state[static 1]) {
+  SDL_GetTicksNS();
+
   SDL_GPUCommandBuffer *command_buffer =
       SDL_AcquireGPUCommandBuffer(state->gpu);
 
@@ -544,6 +589,8 @@ bool bt_state_render(struct bt_state state[static 1]) {
                                .offset = 0,
                            },
                            SDL_GPU_INDEXELEMENTSIZE_32BIT);
+    SDL_BindGPUFragmentStorageBuffers(render_pass, 0, &state->font_curve_buffer,
+                                      2);
     SDL_PushGPUVertexUniformData(command_buffer, 1, proj_view.arr,
                                  sizeof(proj_view));
     SDL_DrawGPUIndexedPrimitivesIndirect(render_pass, state->draw_buffer, 0, 1);
