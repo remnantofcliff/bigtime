@@ -8,7 +8,7 @@ struct bt_font_curve {
 
 struct bt_font_curve_info {
     uint start;
-    uint count;
+    uint end;
 };
 
 layout(std140, set = 2, binding = 0) readonly buffer bt_font_curves {
@@ -74,15 +74,15 @@ void main() {
     uint char = in_char;
 
     float alpha = 0.0;
-    vec2 inverse_diameter = 1.0 / (fwidth(uv));
+    float inverse_diameter = 1.0 / fwidth(uv).x;
     bt_font_curve_info info = curve_infos[char];
-    for (uint i = info.start; i < info.start + info.count; ++i) {
+    for (uint i = info.start; i < info.end; ++i) {
         bt_font_curve curve = curves[i];
         vec2 p0 = curve.p0 - uv;
         vec2 p1 = curve.p1 - uv;
         vec2 p2 = curve.p2 - uv;
 
-        alpha += compute_coverage(inverse_diameter.x, p0, p1, p2);
+        alpha += compute_coverage(inverse_diameter, p0, p1, p2);
     }
 
     alpha = clamp(alpha, 0.0, 1.0);
