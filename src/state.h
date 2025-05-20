@@ -6,17 +6,25 @@
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_video.h>
 
+enum bt_gpu_buffer {
+  bt_gpu_buffer_font_curve,
+  bt_gpu_buffer_font_curve_info,
+  bt_gpu_buffer_vertex,
+  bt_gpu_buffer_index,
+  bt_gpu_buffer_draw,
+  /*
+   * Number of buffers
+   */
+  bt_gpu_buffer_count,
+};
+
 struct bt_state {
   SDL_Window *window;
   SDL_GPUDevice *gpu;
   SDL_GPUShader *vertex_shader;
   SDL_GPUShader *fragment_shader;
   SDL_GPUTransferBuffer *transfer_buffer;
-  SDL_GPUBuffer *font_curve_buffer;
-  SDL_GPUBuffer *font_curve_info_buffer;
-  SDL_GPUBuffer *vertex_buffer;
-  SDL_GPUBuffer *index_buffer;
-  SDL_GPUBuffer *draw_buffer;
+  SDL_GPUBuffer *buffers[bt_gpu_buffer_count];
   SDL_GPUGraphicsPipeline *graphics_pipeline;
   struct bt_game game;
 };

@@ -91,75 +91,70 @@ constexpr SDL_GPUIndexedIndirectDrawCommand bt_draw_data_array[] = {
     },
 };
 
+constexpr uint32_t bt_gpu_buffer_sizes[] = {
+    [bt_gpu_buffer_font_curve] = sizeof(bt_font_curves_bytes),
+    [bt_gpu_buffer_font_curve_info] = sizeof(bt_font_curve_info_bytes),
+    [bt_gpu_buffer_vertex] = sizeof(bt_vertex_data_array),
+    [bt_gpu_buffer_index] = sizeof(bt_index_data_array),
+    [bt_gpu_buffer_draw] = sizeof(bt_draw_data_array),
+};
+constexpr SDL_GPUBufferUsageFlags bt_gpu_buffer_flags[] = {
+    [bt_gpu_buffer_font_curve] = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+    [bt_gpu_buffer_font_curve_info] = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+    [bt_gpu_buffer_vertex] = SDL_GPU_BUFFERUSAGE_VERTEX,
+    [bt_gpu_buffer_index] = SDL_GPU_BUFFERUSAGE_INDEX,
+    [bt_gpu_buffer_draw] = SDL_GPU_BUFFERUSAGE_INDIRECT,
+};
+static char const *const bt_gpu_buffer_names[] = {
+    [bt_gpu_buffer_font_curve] = "font curve buffer",
+    [bt_gpu_buffer_font_curve_info] = "font curve info buffer",
+    [bt_gpu_buffer_vertex] = "vertex buffer",
+    [bt_gpu_buffer_index] = "index buffer",
+    [bt_gpu_buffer_draw] = "draw buffer",
+};
+static_assert(SDL_arraysize(bt_gpu_buffer_sizes) == bt_gpu_buffer_count);
+static_assert(SDL_arraysize(bt_gpu_buffer_flags) == bt_gpu_buffer_count);
+static_assert(SDL_arraysize(bt_gpu_buffer_names) == bt_gpu_buffer_count);
+
 static bool bt_create_buffers(struct bt_state state[static 1]) {
+  uint32_t transfer_buffer_size = 0;
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+    transfer_buffer_size += bt_gpu_buffer_sizes[i];
+  }
   state->transfer_buffer = SDL_CreateGPUTransferBuffer(
-      state->gpu,
-      &(SDL_GPUTransferBufferCreateInfo){
-          .size = sizeof(bt_font_curves_bytes) +
-                  sizeof(bt_font_curve_info_bytes) +
-                  sizeof(bt_vertex_data_array) + sizeof(bt_index_data_array) +
-                  sizeof(bt_draw_data_array),
-      });
+      state->gpu, &(SDL_GPUTransferBufferCreateInfo){
+                      .size = transfer_buffer_size,
+                  });
   if (state->transfer_buffer == nullptr) {
     BT_LOG_SDL_FAIL("Failed to create transfer buffer");
     return false;
   }
 
-  state->font_curve_buffer = SDL_CreateGPUBuffer(
-      state->gpu, &(SDL_GPUBufferCreateInfo){
-                      .usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
-                      .size = sizeof(bt_font_curves_bytes),
-                  });
-  if (state->font_curve_buffer == nullptr) {
-    BT_LOG_SDL_FAIL("Failed to create font curve buffer");
-    return false;
-  }
-
-  state->font_curve_info_buffer = SDL_CreateGPUBuffer(
-      state->gpu, &(SDL_GPUBufferCreateInfo){
-                      .usage = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
-                      .size = sizeof(bt_font_curve_info_bytes),
-                  });
-  if (state->font_curve_info_buffer == nullptr) {
-    BT_LOG_SDL_FAIL("Failed to create font curve buffer");
-    return false;
-  }
-
-  state->vertex_buffer =
-      SDL_CreateGPUBuffer(state->gpu, &(SDL_GPUBufferCreateInfo){
-                                          .usage = SDL_GPU_BUFFERUSAGE_VERTEX,
-                                          .size = sizeof(bt_vertex_data_array),
-                                      });
-  if (state->vertex_buffer == nullptr) {
-    BT_LOG_SDL_FAIL("Failed to create vertex buffer");
-    return false;
-  }
-
-  state->index_buffer =
-      SDL_CreateGPUBuffer(state->gpu, &(SDL_GPUBufferCreateInfo){
-                                          .usage = SDL_GPU_BUFFERUSAGE_INDEX,
-                                          .size = sizeof(bt_index_data_array),
-                                      });
-
-  if (state->index_buffer == nullptr) {
-    BT_LOG_SDL_FAIL("Failed to create index buffer");
-    return false;
-  }
-
-  state->draw_buffer =
-      SDL_CreateGPUBuffer(state->gpu, &(SDL_GPUBufferCreateInfo){
-                                          .usage = SDL_GPU_BUFFERUSAGE_INDIRECT,
-                                          .size = sizeof(bt_draw_data_array),
-                                      });
-  if (state->draw_buffer == nullptr) {
-    BT_LOG_SDL_FAIL("Failed to create draw buffer");
-    return false;
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+    state->buffers[i] =
+        SDL_CreateGPUBuffer(state->gpu, &(SDL_GPUBufferCreateInfo){
+                                            .usage = bt_gpu_buffer_flags[i],
+                                            .size = bt_gpu_buffer_sizes[i],
+                                        });
+    if (state->buffers[i] == nullptr) {
+      BT_LOG_SDL_FAIL("Failed to create %s", bt_gpu_buffer_names[i]);
+      return false;
+    }
   }
 
   return true;
 }
 
 static bool bt_initialize_transfer_buffer(struct bt_state state[static 1]) {
+  void const *const data[] = {
+      [bt_gpu_buffer_font_curve] = bt_font_curves_bytes,
+      [bt_gpu_buffer_font_curve_info] = bt_font_curve_info_bytes,
+      [bt_gpu_buffer_vertex] = bt_vertex_data_array,
+      [bt_gpu_buffer_index] = bt_index_data_array,
+      [bt_gpu_buffer_draw] = bt_draw_data_array,
+  };
+  static_assert(SDL_arraysize(data) == bt_gpu_buffer_count);
+
   unsigned char *p =
       SDL_MapGPUTransferBuffer(state->gpu, state->transfer_buffer, true);
   if (p == nullptr) {
@@ -167,15 +162,10 @@ static bool bt_initialize_transfer_buffer(struct bt_state state[static 1]) {
     return false;
   }
 
-  SDL_memcpy(p, bt_font_curves_bytes, sizeof(bt_font_curves_bytes));
-  p += sizeof(bt_font_curves_bytes);
-  SDL_memcpy(p, bt_font_curve_info_bytes, sizeof(bt_font_curve_info_bytes));
-  p += sizeof(bt_font_curve_info_bytes);
-  SDL_memcpy(p, bt_vertex_data_array, sizeof(bt_vertex_data_array));
-  p += sizeof(bt_vertex_data_array);
-  SDL_memcpy(p, bt_index_data_array, sizeof(bt_index_data_array));
-  p += sizeof(bt_index_data_array);
-  SDL_memcpy(p, bt_draw_data_array, sizeof(bt_draw_data_array));
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+    SDL_memcpy(p, data[i], bt_gpu_buffer_sizes[i]);
+    p += bt_gpu_buffer_sizes[i];
+  }
 
   SDL_UnmapGPUTransferBuffer(state->gpu, state->transfer_buffer);
 
@@ -197,64 +187,19 @@ static bool bt_initialize_buffers(struct bt_state state[static 1]) {
   SDL_GPUCopyPass *const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
 
   uint32_t current_offset = 0;
-  SDL_UploadToGPUBuffer(copy_pass,
-                        &(SDL_GPUTransferBufferLocation){
-                            .transfer_buffer = state->transfer_buffer,
-                        },
-                        &(SDL_GPUBufferRegion){
-                            .buffer = state->font_curve_buffer,
-                            .offset = current_offset,
-                            .size = sizeof(bt_font_curves_bytes),
-                        },
-                        true);
-  current_offset += sizeof(bt_font_curves_bytes);
-  SDL_UploadToGPUBuffer(copy_pass,
-                        &(SDL_GPUTransferBufferLocation){
-                            .transfer_buffer = state->transfer_buffer,
-                            .offset = current_offset,
-                        },
-                        &(SDL_GPUBufferRegion){
-                            .buffer = state->font_curve_info_buffer,
-                            .offset = 0,
-                            .size = sizeof(bt_font_curve_info_bytes),
-                        },
-                        true);
-  current_offset += sizeof(bt_font_curve_info_bytes);
-  SDL_UploadToGPUBuffer(copy_pass,
-                        &(SDL_GPUTransferBufferLocation){
-                            .transfer_buffer = state->transfer_buffer,
-                            .offset = current_offset,
-                        },
-                        &(SDL_GPUBufferRegion){
-                            .buffer = state->vertex_buffer,
-                            .offset = 0,
-                            .size = sizeof(bt_vertex_data_array),
-                        },
-                        true);
-  current_offset += sizeof(bt_vertex_data_array);
-  SDL_UploadToGPUBuffer(copy_pass,
-                        &(SDL_GPUTransferBufferLocation){
-                            .transfer_buffer = state->transfer_buffer,
-                            .offset = current_offset,
-                        },
-                        &(SDL_GPUBufferRegion){
-                            .buffer = state->index_buffer,
-                            .offset = 0,
-                            .size = sizeof(bt_index_data_array),
-                        },
-                        true);
-  current_offset += sizeof(bt_index_data_array);
-  SDL_UploadToGPUBuffer(copy_pass,
-                        &(SDL_GPUTransferBufferLocation){
-                            .transfer_buffer = state->transfer_buffer,
-                            .offset = current_offset,
-                        },
-                        &(SDL_GPUBufferRegion){
-                            .buffer = state->draw_buffer,
-                            .offset = 0,
-                            .size = sizeof(bt_draw_data_array),
-                        },
-                        true);
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+    SDL_UploadToGPUBuffer(copy_pass,
+                          &(SDL_GPUTransferBufferLocation){
+                              .transfer_buffer = state->transfer_buffer,
+                              .offset = current_offset,
+                          },
+                          &(SDL_GPUBufferRegion){
+                              .buffer = state->buffers[i],
+                              .size = bt_gpu_buffer_sizes[i],
+                          },
+                          true);
+    current_offset += bt_gpu_buffer_sizes[i];
+  }
 
   SDL_EndGPUCopyPass(copy_pass);
 
@@ -429,20 +374,10 @@ void bt_state_deinit(struct bt_state state[static 1]) {
   if (state->vertex_shader != nullptr) {
     SDL_ReleaseGPUShader(state->gpu, state->vertex_shader);
   }
-  if (state->font_curve_buffer != nullptr) {
-    SDL_ReleaseGPUBuffer(state->gpu, state->font_curve_buffer);
-  }
-  if (state->font_curve_buffer != nullptr) {
-    SDL_ReleaseGPUBuffer(state->gpu, state->font_curve_info_buffer);
-  }
-  if (state->vertex_buffer != nullptr) {
-    SDL_ReleaseGPUBuffer(state->gpu, state->vertex_buffer);
-  }
-  if (state->index_buffer != nullptr) {
-    SDL_ReleaseGPUBuffer(state->gpu, state->index_buffer);
-  }
-  if (state->draw_buffer != nullptr) {
-    SDL_ReleaseGPUBuffer(state->gpu, state->draw_buffer);
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+    if (state->buffers[i] != nullptr) {
+      SDL_ReleaseGPUBuffer(state->gpu, state->buffers[i]);
+    }
   }
   if (state->transfer_buffer != nullptr) {
     SDL_ReleaseGPUTransferBuffer(state->gpu, state->transfer_buffer);
@@ -575,25 +510,27 @@ bool bt_state_render(struct bt_state state[static 1]) {
                                1, nullptr);
 
     SDL_BindGPUGraphicsPipeline(render_pass, state->graphics_pipeline);
-    SDL_BindGPUVertexBuffers(render_pass, 0,
-                             (SDL_GPUBufferBinding[]){
-                                 {
-                                     .buffer = state->vertex_buffer,
-                                     .offset = 0,
-                                 },
-                             },
-                             1);
+    SDL_BindGPUVertexBuffers(
+        render_pass, 0,
+        (SDL_GPUBufferBinding[]){
+            {
+                .buffer = state->buffers[bt_gpu_buffer_vertex],
+                .offset = 0,
+            },
+        },
+        1);
     SDL_BindGPUIndexBuffer(render_pass,
                            &(SDL_GPUBufferBinding){
-                               .buffer = state->index_buffer,
+                               .buffer = state->buffers[bt_gpu_buffer_index],
                                .offset = 0,
                            },
                            SDL_GPU_INDEXELEMENTSIZE_32BIT);
-    SDL_BindGPUFragmentStorageBuffers(render_pass, 0, &state->font_curve_buffer,
-                                      2);
+    SDL_BindGPUFragmentStorageBuffers(
+        render_pass, 0, &state->buffers[bt_gpu_buffer_font_curve], 2);
     SDL_PushGPUVertexUniformData(command_buffer, 1, proj_view.arr,
                                  sizeof(proj_view));
-    SDL_DrawGPUIndexedPrimitivesIndirect(render_pass, state->draw_buffer, 0, 1);
+    SDL_DrawGPUIndexedPrimitivesIndirect(
+        render_pass, state->buffers[bt_gpu_buffer_draw], 0, 1);
     SDL_EndGPURenderPass(render_pass);
   }
 
