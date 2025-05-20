@@ -4,7 +4,11 @@ struct bt_font_curve {
     vec2 p0;
     vec2 p1;
     vec2 p2;
+    uint flags;
+    uint flags2;
 };
+
+const uint flags_line = 1;
 
 struct bt_font_curve_info {
     uint start;
@@ -25,9 +29,6 @@ layout(location = 2) flat in uint in_char;
 layout(location = 0) out vec4 out_color;
 
 float compute_coverage(float inverse_diameter, vec2 p0, vec2 p1, vec2 p2) {
-    if (p0.y > 0 && p1.y > 0 && p2.y > 0) return 0.0;
-    if (p0.y < 0 && p1.y < 0 && p2.y < 0) return 0.0;
-
     vec2 a = p0 - 2.0 * p1 + p2;
     vec2 b = p0 - p1;
     vec2 c = p0;
@@ -35,23 +36,12 @@ float compute_coverage(float inverse_diameter, vec2 p0, vec2 p1, vec2 p2) {
     float t0;
     float t1;
 
-    if (abs(a.y) >= 1e-5) {
-        float radicand = b.y * b.y - a.y * c.y;
-        if (radicand <= 0) return 0.0;
+    float radicand = b.y * b.y - a.y * c.y;
+    if (radicand <= 0) return 0.0;
 
-        float s = sqrt(radicand);
-        t0 = (b.y - s) / a.y;
-        t1 = (b.y + s) / a.y;
-    } else {
-        float t = p0.y / (p0.y - p2.y);
-        if (p0.y < p2.y) {
-            t0 = -1.0;
-            t1 = t;
-        } else {
-            t0 = t;
-            t1 = -1.0;
-        }
-    }
+    float s = sqrt(radicand);
+    t0 = (b.y - s) / a.y;
+    t1 = (b.y + s) / a.y;
 
     float alpha = 0.0;
 
@@ -68,6 +58,17 @@ float compute_coverage(float inverse_diameter, vec2 p0, vec2 p1, vec2 p2) {
     return alpha;
 }
 
+float line_coverage(float inverse_diameter, vec2 p0, vec2 p1, vec2 p2) {
+    float t = p0.y / (p0.y - p2.y);
+    vec2 a = p0 - 2.0 * p1 + p2;
+    vec2 b = p0 - p1;
+    vec2 c = p0;
+
+    float x = (a.x * t - 2.0 * b.x) * t + c.x;
+    float is_valid = float(t >= 0.0 && t < 1.0);
+    return is_valid * (float(p0.y >= p2.y) * 2.0 - 1.0) * clamp(x * inverse_diameter + 0.5, 0, 1);
+}
+
 void main() {
     vec2 uv = in_uv;
     vec3 color = in_color;
@@ -81,8 +82,15 @@ void main() {
         vec2 p0 = curve.p0 - uv;
         vec2 p1 = curve.p1 - uv;
         vec2 p2 = curve.p2 - uv;
-
-        alpha += compute_coverage(inverse_diameter, p0, p1, p2);
+        vec3 ys = vec3(p0.y, p1.y, p2.y);
+        float min_y = min(min(p0.y, p1.y), p2.y);
+        float max_y = max(max(p0.y, p1.y), p2.y);
+        if (min_y > 0.0 || max_y < 0.0) continue;
+        if (curve.flags == flags_line) {
+            alpha += line_coverage(inverse_diameter, p0, p1, p2);
+        } else {
+            alpha += compute_coverage(inverse_diameter, p0, p1, p2);
+        }
     }
 
     alpha = clamp(alpha, 0.0, 1.0);

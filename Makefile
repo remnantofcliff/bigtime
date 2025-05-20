@@ -70,6 +70,7 @@ ${BUILD_OBJECTS}/%.o: src/%.c ${REQUIREMENTS}
 
 ${BUILD_EMBED}/%.spv: src/%.glsl
 	glslangValidator -V ${<} -o ${@}
+	spirv-opt -O ${@} -o ${@}
 
 clean:
 	rm -rf build

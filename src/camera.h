@@ -12,6 +12,7 @@ struct bt_camera {
 };
 
 constexpr struct bt_camera bt_default_camera = {
+    .eye.arr[2] = -3,
     .yaw = bt_pi,
 };
 
