@@ -25,7 +25,7 @@ constexpr struct bt_vertex_data bt_vertex_data_array[] = {
     },
 };
 
-constexpr uint32_t bt_index_data_array[] = {0, 1, 2, 1, 3, 2};
+constexpr uint16_t bt_index_data_array[] = {0, 1, 2, 1, 3, 2};
 
 constexpr SDL_GPUIndexedIndirectDrawCommand bt_draw_data_array[] = {
     {
@@ -463,6 +463,7 @@ bool bt_state_render(struct bt_state state[static 1]) {
         'S',
         ':',
         ' ',
+        fps % 100000 / 10000 + '0',
         fps % 10000 / 1000 + '0',
         fps % 1000 / 100 + '0',
         fps % 100 / 10 + '0',
@@ -492,7 +493,7 @@ bool bt_state_render(struct bt_state state[static 1]) {
     p += state->buffer_sizes[i];
   }
 
-  memcpy(p, state->instance_data, sizeof(state->instance_data));
+  SDL_memcpy(p, state->instance_data, sizeof(state->instance_data));
 
   SDL_UnmapGPUTransferBuffer(state->gpu, state->transfer_buffer);
 
@@ -583,7 +584,7 @@ bool bt_state_render(struct bt_state state[static 1]) {
                                .buffer = state->buffers[bt_gpu_buffer_index],
                                .offset = 0,
                            },
-                           SDL_GPU_INDEXELEMENTSIZE_32BIT);
+                           SDL_GPU_INDEXELEMENTSIZE_16BIT);
     SDL_BindGPUFragmentStorageBuffers(
         render_pass, 0, &state->buffers[bt_gpu_buffer_font_curve], 2);
     SDL_PushGPUVertexUniformData(command_buffer, 1, proj_view.arr,
