@@ -82,10 +82,9 @@ void main() {
         vec3 ys = vec3(p0.y, p1.y, p2.y);
         float min_y = min(min(p0.y, p1.y), p2.y);
         float max_y = max(max(p0.y, p1.y), p2.y);
+        if (min_y > 0.0 || max_y < 0.0) continue;
         alpha += compute_coverage(inverse_diameter, p0, p1, p2);
     }
-
-    alpha = clamp(alpha, 0.0, 1.0);
 
     out_color = vec4(color, alpha);
 }
