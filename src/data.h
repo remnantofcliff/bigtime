@@ -15,10 +15,6 @@ struct bt_font_curve_info {
 };
 
 struct bt_font_metrics {
-  float x_min;
-  float y_min;
-  float x_max;
-  float y_max;
   float advance;
 };
 

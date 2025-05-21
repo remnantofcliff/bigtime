@@ -199,18 +199,21 @@ static bool bt_create_shaders(struct bt_state state[static 1]) {
   return true;
 }
 
+#include <stdio.h>
+
 static void bt_state_update_instance_data(
     struct bt_state state[static 1],
     uint32_t const chars[static SDL_arraysize(state->instance_data)]) {
   float advance = 0.0f;
   for (size_t i = 0; i < SDL_arraysize(state->instance_data); ++i) {
     struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
-    advance += metrics->advance;
-    state->instance_data[i].scale[0] = metrics->x_max - metrics->x_min;
-    state->instance_data[i].scale[1] = metrics->y_max - metrics->y_min;
-    state->instance_data[i].translation[0] = advance + metrics->x_min;
-    state->instance_data[i].translation[1] = metrics->y_min;
+    state->instance_data[i].scale[0] = 1.0f;
+    state->instance_data[i].scale[1] = 1.0f;
+    state->instance_data[i].scale[2] = 1.0f;
+    state->instance_data[i].translation[0] = advance;
+    state->instance_data[i].translation[1] = 0.0f;
     state->instance_data[i].c = chars[i];
+    advance += metrics->advance;
   }
 }
 
@@ -454,17 +457,17 @@ bool bt_state_render(struct bt_state state[static 1]) {
   fps += 1;
   uint64_t current_time = SDL_GetTicksNS();
   if (current_time - fps_timer >= 1000000000) {
-    uint32_t const chars[] = {
+    uint32_t chars[SDL_arraysize(state->instance_data)] = {
         'F',
         'P',
         'S',
         ':',
         ' ',
-        fps / 100 + '0',
+        fps % 10000 / 1000 + '0',
+        fps % 1000 / 100 + '0',
         fps % 100 / 10 + '0',
         fps % 10 + '0',
     };
-    static_assert(SDL_arraysize(chars) == SDL_arraysize(state->instance_data));
 
     bt_state_update_instance_data(state, chars);
 

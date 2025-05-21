@@ -25,7 +25,7 @@ struct bt_instance_data {
   float translation[3];
   uint32_t c;
 };
-
+#include <limits.h>
 struct bt_state {
   SDL_Window *window;
   SDL_GPUDevice *gpu;
@@ -35,7 +35,7 @@ struct bt_state {
   SDL_GPUBuffer *buffers[bt_gpu_buffer_count];
   uint32_t buffer_sizes[bt_gpu_buffer_count];
   SDL_GPUGraphicsPipeline *graphics_pipeline;
-  struct bt_instance_data instance_data[8];
+  struct bt_instance_data instance_data[16];
   struct bt_game game;
 };
 
