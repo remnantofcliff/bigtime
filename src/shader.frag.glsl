@@ -95,5 +95,5 @@ void main() {
 
     alpha = clamp(alpha, 0.0, 1.0);
 
-    out_color = vec4(color * (1.0 - alpha), 1.0);
+    out_color = vec4(color, alpha);
 }

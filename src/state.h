@@ -10,12 +10,20 @@ enum bt_gpu_buffer {
   bt_gpu_buffer_font_curve,
   bt_gpu_buffer_font_curve_info,
   bt_gpu_buffer_vertex,
+  bt_gpu_buffer_instance,
   bt_gpu_buffer_index,
   bt_gpu_buffer_draw,
   /*
    * Number of buffers
    */
   bt_gpu_buffer_count,
+};
+
+struct bt_instance_data {
+  float scale[3];
+  float rotation[4];
+  float translation[3];
+  uint32_t c;
 };
 
 struct bt_state {
@@ -25,7 +33,9 @@ struct bt_state {
   SDL_GPUShader *fragment_shader;
   SDL_GPUTransferBuffer *transfer_buffer;
   SDL_GPUBuffer *buffers[bt_gpu_buffer_count];
+  uint32_t buffer_sizes[bt_gpu_buffer_count];
   SDL_GPUGraphicsPipeline *graphics_pipeline;
+  struct bt_instance_data instance_data[8];
   struct bt_game game;
 };
 
