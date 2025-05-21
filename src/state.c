@@ -24,9 +24,7 @@ constexpr struct bt_vertex_data bt_vertex_data_array[] = {
         .color = {0.2f, 0.4f, 0.8f},
     },
 };
-
 constexpr uint16_t bt_index_data_array[] = {0, 1, 2, 1, 3, 2};
-
 constexpr SDL_GPUIndexedIndirectDrawCommand bt_draw_data_array[] = {
     {
 
@@ -450,30 +448,24 @@ static void extrapolate_render_infos(struct bt_render_info infos[static 2],
   out->camera_dir = bt_vec3_lerp(infos[1].camera_dir, infos[0].camera_dir, t);
 }
 
-static uint64_t fps_timer = 0;
-static uint32_t fps = 0;
-
 bool bt_state_render(struct bt_state state[static 1]) {
-  fps += 1;
-  uint64_t current_time = SDL_GetTicksNS();
-  if (current_time - fps_timer >= 1000000000) {
+  struct bt_fps_report report = {};
+  bt_fps_timer_increment_fps(&state->fps_timer, &report);
+  if (report.did_update) {
     uint32_t chars[SDL_arraysize(state->instance_data)] = {
         'F',
         'P',
         'S',
         ':',
         ' ',
-        fps % 100000 / 10000 + '0',
-        fps % 10000 / 1000 + '0',
-        fps % 1000 / 100 + '0',
-        fps % 100 / 10 + '0',
-        fps % 10 + '0',
+        report.fps % 100000 / 10000 + '0',
+        report.fps % 10000 / 1000 + '0',
+        report.fps % 1000 / 100 + '0',
+        report.fps % 100 / 10 + '0',
+        report.fps % 10 + '0',
     };
 
     bt_state_update_instance_data(state, chars);
-
-    fps = 0;
-    fps_timer = current_time;
   }
 
   SDL_GPUCommandBuffer *command_buffer =

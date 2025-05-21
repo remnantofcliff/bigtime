@@ -1,6 +1,7 @@
 #ifndef BT_STATE_H
 #define BT_STATE_H
 
+#include "fps_timer.h"
 #include "game.h"
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gpu.h>
@@ -35,6 +36,7 @@ struct bt_state {
   SDL_GPUBuffer *buffers[bt_gpu_buffer_count];
   uint32_t buffer_sizes[bt_gpu_buffer_count];
   SDL_GPUGraphicsPipeline *graphics_pipeline;
+  struct bt_fps_timer fps_timer;
   struct bt_instance_data instance_data[16];
   struct bt_game game;
 };
