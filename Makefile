@@ -65,14 +65,11 @@ ${GAME}: ${OBJECTS}
 ${BUILD_OBJECTS}/%.o: src/%.c ${REQUIREMENTS}
 	@mkdir -p $(dir ${@})
 	${CC} ${<} ${FLAGS} -std=c23 -c -o ${@}
-${BUILD_OBJECTS}/stb_truetype.o: src/stb_truetype.c
-	@mkdir -p $(dir ${@})
-	${CC} ${<} ${FLAGS} -w -c -o ${@}
 
 -include ${DEPENDS}
 
 ${BUILD_EMBED}/%.spv: src/%.glsl
-	glslangValidator -V ${<} -o ${@}
+	glslangValidator -V ${SHADER_FLAGS} ${<} -o ${@}
 	spirv-opt -O ${@} -o ${@}
 
 clean:
