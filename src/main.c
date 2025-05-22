@@ -15,7 +15,7 @@ SDL_AppResult SDL_AppInit(void **appstate, [[maybe_unused]] int argc,
 
   struct bt_state *state = SDL_calloc(1, sizeof(*state));
   *appstate = state;
-  if (state == nullptr) {
+  if (!state) {
     return SDL_APP_FAILURE;
   }
 
@@ -53,15 +53,13 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
 
 SDL_AppResult SDL_AppIterate([[maybe_unused]] void *appstate) {
   struct bt_state *state = appstate;
-  if (!bt_state_render(state)) {
-    return SDL_APP_FAILURE;
-  }
+  bt_state_render(state);
   return SDL_APP_CONTINUE;
 }
 
 void SDL_AppQuit(void *appstate, [[maybe_unused]] SDL_AppResult result) {
   struct bt_state *state = appstate;
-  if (state != nullptr) {
+  if (state) {
     bt_state_deinit(state);
     SDL_free(state);
   }

@@ -4,7 +4,7 @@
 bool bt_event_queue_init(struct bt_event_queue event_queue[static 1]) {
   SDL_zerop(event_queue);
   event_queue->mutex = SDL_CreateMutex();
-  if (event_queue->mutex == nullptr) {
+  if (!event_queue->mutex) {
     BT_LOG_SDL_FAIL("Failed to create event queue mutex");
     return false;
   }

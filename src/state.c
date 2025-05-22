@@ -64,31 +64,31 @@ static bool bt_create_buffers(struct bt_state state[static 1]) {
   state->buffer_sizes[bt_gpu_buffer_draw] = sizeof(bt_draw_data_array);
 
   state->transfer_buffer_offsets[0] = 0;
-  for (enum bt_gpu_buffer i = 1; i < bt_gpu_buffer_count; ++i) {
+  for (enum bt_gpu_buffer i = 1; i < bt_gpu_buffer_count; i += 1) {
     state->transfer_buffer_offsets[i] =
         state->transfer_buffer_offsets[i - 1] + state->buffer_sizes[i - 1];
   }
 
   uint32_t transfer_buffer_size = 0;
-  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; i += 1) {
     transfer_buffer_size += state->buffer_sizes[i];
   }
   state->transfer_buffer = SDL_CreateGPUTransferBuffer(
       state->gpu, &(SDL_GPUTransferBufferCreateInfo){
                       .size = transfer_buffer_size,
                   });
-  if (state->transfer_buffer == nullptr) {
+  if (!state->transfer_buffer) {
     BT_LOG_SDL_FAIL("Failed to create transfer buffer");
     return false;
   }
 
-  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; i += 1) {
     state->buffers[i] =
         SDL_CreateGPUBuffer(state->gpu, &(SDL_GPUBufferCreateInfo){
                                             .usage = bt_gpu_buffer_flags[i],
                                             .size = state->buffer_sizes[i],
                                         });
-    if (state->buffers[i] == nullptr) {
+    if (!state->buffers[i]) {
       BT_LOG_SDL_FAIL("Failed to create %s", bt_gpu_buffer_names[i]);
       return false;
     }
@@ -110,12 +110,12 @@ static bool bt_initialize_transfer_buffer(struct bt_state state[static 1]) {
 
   unsigned char *p =
       SDL_MapGPUTransferBuffer(state->gpu, state->transfer_buffer, true);
-  if (p == nullptr) {
+  if (!p) {
     BT_LOG_SDL_FAIL("Failed to map transfer buffer");
     return false;
   }
 
-  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; i += 1) {
     SDL_memcpy(p, data[i], state->buffer_sizes[i]);
     p += state->buffer_sizes[i];
   }
@@ -132,7 +132,7 @@ static bool bt_initialize_buffers(struct bt_state state[static 1]) {
 
   SDL_GPUCommandBuffer *const command_buffer =
       SDL_AcquireGPUCommandBuffer(state->gpu);
-  if (command_buffer == nullptr) {
+  if (!command_buffer) {
     BT_LOG_SDL_FAIL("Failed to create command buffer");
     return false;
   }
@@ -140,7 +140,7 @@ static bool bt_initialize_buffers(struct bt_state state[static 1]) {
   SDL_GPUCopyPass *const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
 
   uint32_t current_offset = 0;
-  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; i += 1) {
     SDL_UploadToGPUBuffer(copy_pass,
                           &(SDL_GPUTransferBufferLocation){
                               .transfer_buffer = state->transfer_buffer,
@@ -158,7 +158,7 @@ static bool bt_initialize_buffers(struct bt_state state[static 1]) {
 
   SDL_GPUFence *const fence =
       SDL_SubmitGPUCommandBufferAndAcquireFence(command_buffer);
-  if (fence == nullptr) {
+  if (!fence) {
     BT_LOG_SDL_FAIL("Failed to submit command buffer");
     return false;
   }
@@ -182,7 +182,7 @@ static bool bt_create_shaders(struct bt_state state[static 1]) {
                       .stage = SDL_GPU_SHADERSTAGE_VERTEX,
                       .num_uniform_buffers = 1,
                   });
-  if (state->vertex_shader == nullptr) {
+  if (!state->vertex_shader) {
     BT_LOG_SDL_FAIL("Failed to create vertex shader");
     return false;
   }
@@ -196,7 +196,7 @@ static bool bt_create_shaders(struct bt_state state[static 1]) {
                       .stage = SDL_GPU_SHADERSTAGE_FRAGMENT,
                       .num_storage_buffers = 2,
                   });
-  if (state->fragment_shader == nullptr) {
+  if (!state->fragment_shader) {
     BT_LOG_SDL_FAIL("Failed to create fragment shader");
     return false;
   }
@@ -210,7 +210,7 @@ static void bt_state_update_instance_data(
     struct bt_state state[static 1],
     uint32_t const chars[static SDL_arraysize(state->instance_data)]) {
   float advance = 0.0f;
-  for (size_t i = 0; i < SDL_arraysize(state->instance_data); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(state->instance_data); i += 1) {
     struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
     state->instance_data[i].scale[0] = 1.0f;
     state->instance_data[i].scale[1] = 1.0f;
@@ -226,7 +226,7 @@ bool bt_state_init(struct bt_state state[static 1]) {
   SDL_zerop(state);
 
   state->window = SDL_CreateWindow("bigtime", 800, 600, SDL_WINDOW_RESIZABLE);
-  if (state->window == nullptr) {
+  if (!state->window) {
     BT_LOG_SDL_FAIL("Failed to create SDL window");
     return false;
   }
@@ -238,7 +238,7 @@ bool bt_state_init(struct bt_state state[static 1]) {
   // SDL_SetRelativeMouseTransform();
 
   state->gpu = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr);
-  if (state->window == nullptr) {
+  if (!state->window) {
     BT_LOG_SDL_FAIL("Failed to create SDL GPUDevice");
     return false;
   }
@@ -354,7 +354,7 @@ bool bt_state_init(struct bt_state state[static 1]) {
               },
       });
 
-  if (state->graphics_pipeline == nullptr) {
+  if (!state->graphics_pipeline) {
     BT_LOG_SDL_FAIL("Failed to create graphics pipeline");
     return false;
   }
@@ -369,27 +369,27 @@ bool bt_state_init(struct bt_state state[static 1]) {
 void bt_state_deinit(struct bt_state state[static 1]) {
   bt_game_stop(&state->game);
 
-  if (state->graphics_pipeline != nullptr) {
+  if (state->graphics_pipeline) {
     SDL_ReleaseGPUGraphicsPipeline(state->gpu, state->graphics_pipeline);
   }
-  if (state->fragment_shader != nullptr) {
+  if (state->fragment_shader) {
     SDL_ReleaseGPUShader(state->gpu, state->fragment_shader);
   }
-  if (state->vertex_shader != nullptr) {
+  if (state->vertex_shader) {
     SDL_ReleaseGPUShader(state->gpu, state->vertex_shader);
   }
-  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
-    if (state->buffers[i] != nullptr) {
+  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; i += 1) {
+    if (state->buffers[i]) {
       SDL_ReleaseGPUBuffer(state->gpu, state->buffers[i]);
     }
   }
-  if (state->transfer_buffer != nullptr) {
+  if (state->transfer_buffer) {
     SDL_ReleaseGPUTransferBuffer(state->gpu, state->transfer_buffer);
   }
-  if (state->gpu != nullptr) {
+  if (state->gpu) {
     SDL_DestroyGPUDevice(state->gpu);
   }
-  if (state->window != nullptr) {
+  if (state->window) {
     SDL_DestroyWindow(state->window);
   }
   SDL_memset(state, 0, sizeof(*state));
@@ -482,7 +482,7 @@ bool bt_copy_data_to_transfer_buffer(struct bt_state state[static 1],
                                      unsigned char data[static data_size]) {
   unsigned char *p =
       SDL_MapGPUTransferBuffer(state->gpu, state->transfer_buffer, true);
-  if (p == nullptr) {
+  if (!p) {
     BT_LOG_SDL_FAIL("Failed to map transfer buffer");
     return false;
   }
@@ -495,26 +495,12 @@ bool bt_copy_data_to_transfer_buffer(struct bt_state state[static 1],
   return true;
 }
 
-bool bt_state_render(struct bt_state state[static 1]) {
-  SDL_GPUCommandBuffer *command_buffer =
-      SDL_AcquireGPUCommandBuffer(state->gpu);
+struct bt_uniforms {
+  struct bt_mat4 proj_view;
+};
 
-  SDL_GPUCopyPass *const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
-
-  SDL_UploadToGPUBuffer(
-      copy_pass,
-      &(SDL_GPUTransferBufferLocation){
-          .transfer_buffer = state->transfer_buffer,
-          .offset = state->transfer_buffer_offsets[bt_gpu_buffer_instance],
-      },
-      &(SDL_GPUBufferRegion){
-          .buffer = state->buffers[bt_gpu_buffer_instance],
-          .size = state->buffer_sizes[bt_gpu_buffer_instance],
-      },
-      true);
-
-  SDL_EndGPUCopyPass(copy_pass);
-
+void bt_state_get_uniform_data(struct bt_state state[static 1],
+                               struct bt_uniforms out[static 1]) {
   struct bt_render_info info = {};
   bt_game_get_render_info(&state->game, &info);
 
@@ -530,70 +516,10 @@ bool bt_state_render(struct bt_state state[static 1]) {
   struct bt_mat4 proj = {};
   bt_perspective(&proj, bt_pi * 0.25f,
                  (float)state->width / (float)state->height, 0.1f, 100.0f);
-  struct bt_mat4 proj_view = {};
-  bt_mat4_mul(&proj, &view, &proj_view);
+  bt_mat4_mul(&proj, &view, &out->proj_view);
+}
 
-  SDL_GPUTexture *texture = nullptr;
-  if (!SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, state->window,
-                                             &texture, &state->width,
-                                             &state->height)) {
-    BT_LOG_SDL_FAIL("Failed to acquire swapchain texture");
-    return false;
-  }
-
-  if (texture != nullptr) {
-    SDL_GPURenderPass *render_pass =
-        SDL_BeginGPURenderPass(command_buffer,
-                               (SDL_GPUColorTargetInfo[]){
-                                   {
-                                       .texture = texture,
-                                       .clear_color =
-                                           (SDL_FColor){
-                                               .r = 0.0f,
-                                               .g = 0.0f,
-                                               .b = 0.0f,
-                                               .a = 1.0f,
-                                           },
-                                       .load_op = SDL_GPU_LOADOP_CLEAR,
-                                       .store_op = SDL_GPU_STOREOP_STORE,
-                                   },
-                               },
-                               1, nullptr);
-
-    SDL_BindGPUGraphicsPipeline(render_pass, state->graphics_pipeline);
-    SDL_BindGPUVertexBuffers(
-        render_pass, 0,
-        (SDL_GPUBufferBinding[]){
-            {
-                .buffer = state->buffers[bt_gpu_buffer_vertex],
-                .offset = 0,
-            },
-            {
-                .buffer = state->buffers[bt_gpu_buffer_instance],
-                .offset = 0,
-            },
-        },
-        2);
-    SDL_BindGPUIndexBuffer(render_pass,
-                           &(SDL_GPUBufferBinding){
-                               .buffer = state->buffers[bt_gpu_buffer_index],
-                               .offset = 0,
-                           },
-                           SDL_GPU_INDEXELEMENTSIZE_16BIT);
-    SDL_BindGPUFragmentStorageBuffers(
-        render_pass, 0, &state->buffers[bt_gpu_buffer_font_curve], 2);
-    SDL_PushGPUVertexUniformData(command_buffer, 1, proj_view.arr,
-                                 sizeof(proj_view));
-    SDL_DrawGPUIndexedPrimitivesIndirect(
-        render_pass, state->buffers[bt_gpu_buffer_draw], 0, 1);
-    SDL_EndGPURenderPass(render_pass);
-  }
-
-  if (!SDL_SubmitGPUCommandBuffer(command_buffer)) {
-    BT_LOG_SDL_FAIL("Failed to submit command buffer");
-    return false;
-  }
-
+bool update_fps(struct bt_state state[static 1]) {
   struct bt_fps_report report = {};
   bt_fps_timer_increment_fps(&state->fps_timer, &report);
   if (report.did_update) {
@@ -621,4 +547,113 @@ bool bt_state_render(struct bt_state state[static 1]) {
   }
 
   return true;
+}
+
+void bt_state_copy_instance_data(struct bt_state state[static 1],
+                                 SDL_GPUCopyPass *copy_pass) {
+  constexpr enum bt_gpu_buffer buffer = bt_gpu_buffer_instance;
+
+  SDL_UploadToGPUBuffer(copy_pass,
+                        &(SDL_GPUTransferBufferLocation){
+                            .transfer_buffer = state->transfer_buffer,
+                            .offset = state->transfer_buffer_offsets[buffer],
+                        },
+                        &(SDL_GPUBufferRegion){
+                            .buffer = state->buffers[buffer],
+                            .size = state->buffer_sizes[buffer],
+                        },
+                        true);
+}
+
+void bt_state_render_text(struct bt_state state[static 1],
+                          SDL_GPURenderPass *render_pass) {
+  SDL_BindGPUGraphicsPipeline(render_pass, state->graphics_pipeline);
+  SDL_BindGPUVertexBuffers(
+      render_pass, 0,
+      (SDL_GPUBufferBinding[]){
+          {
+              .buffer = state->buffers[bt_gpu_buffer_vertex],
+              .offset = 0,
+          },
+          {
+              .buffer = state->buffers[bt_gpu_buffer_instance],
+              .offset = 0,
+          },
+      },
+      2);
+  SDL_BindGPUIndexBuffer(render_pass,
+                         &(SDL_GPUBufferBinding){
+                             .buffer = state->buffers[bt_gpu_buffer_index],
+                             .offset = 0,
+                         },
+                         SDL_GPU_INDEXELEMENTSIZE_16BIT);
+  SDL_BindGPUFragmentStorageBuffers(
+      render_pass, 0, &state->buffers[bt_gpu_buffer_font_curve], 2);
+  SDL_DrawGPUIndexedPrimitivesIndirect(
+      render_pass, state->buffers[bt_gpu_buffer_draw], 0, 1);
+}
+
+bool bt_state_render(struct bt_state state[static 1]) {
+  bool result = true;
+
+  struct bt_uniforms uniform_data = {};
+  bt_state_get_uniform_data(state, &uniform_data);
+
+  SDL_GPUCommandBuffer *command_buffer =
+      SDL_AcquireGPUCommandBuffer(state->gpu);
+  if (!command_buffer) {
+    BT_LOG_SDL_FAIL("Failed to acquire command buffer");
+  }
+
+  SDL_GPUCopyPass *const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
+  bt_state_copy_instance_data(state, copy_pass);
+  SDL_EndGPUCopyPass(copy_pass);
+
+  SDL_GPUTexture *texture = nullptr;
+  if (!SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, state->window,
+                                             &texture, &state->width,
+                                             &state->height)) {
+    BT_LOG_SDL_FAIL("Failed to acquire swapchain texture");
+    result = false;
+    goto submit;
+  }
+  if (!texture) {
+    result = false;
+    goto submit;
+  }
+
+  SDL_PushGPUVertexUniformData(command_buffer, 1, uniform_data.proj_view.arr,
+                               sizeof(uniform_data.proj_view.arr));
+
+  SDL_GPURenderPass *render_pass =
+      SDL_BeginGPURenderPass(command_buffer,
+                             (SDL_GPUColorTargetInfo[]){
+                                 {
+                                     .texture = texture,
+                                     .clear_color =
+                                         (SDL_FColor){
+                                             .r = 0.0f,
+                                             .g = 0.0f,
+                                             .b = 0.0f,
+                                             .a = 1.0f,
+                                         },
+                                     .load_op = SDL_GPU_LOADOP_CLEAR,
+                                     .store_op = SDL_GPU_STOREOP_STORE,
+                                 },
+                             },
+                             1, nullptr);
+  bt_state_render_text(state, render_pass);
+  SDL_EndGPURenderPass(render_pass);
+
+submit:
+  if (!SDL_SubmitGPUCommandBuffer(command_buffer)) {
+    BT_LOG_SDL_FAIL("Failed to submit command buffer");
+    result = false;
+  }
+
+  if (result) {
+    update_fps(state);
+  }
+
+  return result;
 }

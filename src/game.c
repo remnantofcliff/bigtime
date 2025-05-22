@@ -41,7 +41,7 @@ static int update_thread_fn(void *data) {
 
     struct bt_event event_buffer[SDL_arraysize(game->event_queue.events)] = {};
     uint16_t ev_count = bt_event_queue_get(&game->event_queue, event_buffer);
-    for (uint16_t i = 0; i < ev_count; ++i) {
+    for (uint16_t i = 0; i < ev_count; i += 1) {
       struct bt_event *event = &event_buffer[i];
       switch (event_buffer[i].type) {
       case bt_event_type_key:
@@ -102,12 +102,12 @@ bool bt_game_run(struct bt_game game[static 1]) {
     return false;
   }
   game->render_info_mutex = SDL_CreateMutex();
-  if (game->render_info_mutex == nullptr) {
+  if (!game->render_info_mutex) {
     BT_LOG_SDL_FAIL("Failed to create render info mutex");
     return false;
   }
   game->thread = SDL_CreateThread(update_thread_fn, "Update thread", game);
-  if (game->thread == nullptr) {
+  if (!game->thread) {
     BT_LOG_SDL_FAIL("Failed to create update thread");
     return false;
   }

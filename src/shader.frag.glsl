@@ -73,7 +73,7 @@ void main() {
     float alpha = 0.0;
     float inverse_diameter = 1.0 / fwidth(uv).x;
     bt_font_curve_info info = curve_infos[char];
-    for (uint i = info.start; i < info.end; ++i) {
+    for (uint i = info.start; i < info.end; i += 1) {
         bt_font_curve curve = curves[i];
         vec2 uv = uv;
         vec2 p0 = curve.p0 - uv;

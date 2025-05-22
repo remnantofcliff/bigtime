@@ -64,7 +64,7 @@ void bt_perspective(struct bt_mat4 out[static 1], float fovy,
 
 struct bt_vec2 bt_vec2_add(struct bt_vec2 a, struct bt_vec2 b) {
   typeof(a) result = {};
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     result.arr[i] = a.arr[i] + b.arr[i];
   }
   return result;
@@ -76,7 +76,7 @@ float bt_vec2_length(struct bt_vec2 a) {
 
 struct bt_vec2 bt_vec2_mul(struct bt_vec2 a, struct bt_vec2 b) {
   typeof(a) result = {};
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     result.arr[i] = a.arr[i] * b.arr[i];
   }
   return result;
@@ -84,7 +84,7 @@ struct bt_vec2 bt_vec2_mul(struct bt_vec2 a, struct bt_vec2 b) {
 
 struct bt_vec2 bt_vec2_mulf(struct bt_vec2 a, float b) {
   typeof(a) result = {};
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     result.arr[i] = a.arr[i] * b;
   }
   return result;
@@ -105,7 +105,7 @@ struct bt_vec2 bt_vec2_normalize_or_zero(struct bt_vec2 a) {
 
 float bt_vec2_sum(struct bt_vec2 a) {
   float sum = 0.0f;
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     sum += a.arr[i];
   }
   return sum;
@@ -113,7 +113,7 @@ float bt_vec2_sum(struct bt_vec2 a) {
 
 struct bt_vec3 bt_vec3_add(struct bt_vec3 a, struct bt_vec3 b) {
   typeof(a) result = {};
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     result.arr[i] = a.arr[i] + b.arr[i];
   }
   return result;
@@ -129,7 +129,7 @@ float bt_vec3_length(struct bt_vec3 a) {
 
 struct bt_vec3 bt_vec3_lerp(struct bt_vec3 from, struct bt_vec3 to, float t) {
   typeof(from) result = {};
-  for (size_t i = 0; i < SDL_arraysize(from.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(from.arr); i += 1) {
     result.arr[i] = (to.arr[i] - from.arr[i]) * t + from.arr[i];
   }
   return result;
@@ -137,7 +137,7 @@ struct bt_vec3 bt_vec3_lerp(struct bt_vec3 from, struct bt_vec3 to, float t) {
 
 struct bt_vec3 bt_vec3_mul(struct bt_vec3 a, struct bt_vec3 b) {
   typeof(a) result = {};
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     result.arr[i] = a.arr[i] * b.arr[i];
   }
   return result;
@@ -145,7 +145,7 @@ struct bt_vec3 bt_vec3_mul(struct bt_vec3 a, struct bt_vec3 b) {
 
 struct bt_vec3 bt_vec3_mulf(struct bt_vec3 a, float b) {
   typeof(a) result = {};
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     result.arr[i] = a.arr[i] * b;
   }
   return result;
@@ -153,7 +153,7 @@ struct bt_vec3 bt_vec3_mulf(struct bt_vec3 a, float b) {
 
 struct bt_vec3 bt_vec3_negate(struct bt_vec3 a) {
   typeof(a) result = {};
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     result.arr[i] = -a.arr[i];
   }
   return result;
@@ -174,7 +174,7 @@ struct bt_vec3 bt_vec3_normalize_or_zero(struct bt_vec3 a) {
 
 float bt_vec3_sum(struct bt_vec3 a) {
   float sum = 0.0f;
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+  for (size_t i = 0; i < SDL_arraysize(a.arr); i += 1) {
     sum += a.arr[i];
   }
   return sum;
@@ -182,7 +182,7 @@ float bt_vec3_sum(struct bt_vec3 a) {
 
 struct bt_vec4 bt_vec4_add(struct bt_vec4 a, struct bt_vec4 b) {
   typeof(a) result = {};
-  for (size_t i = 0; i < 4; ++i) {
+  for (size_t i = 0; i < 4; i += 1) {
     result.arr[i] = a.arr[i] + b.arr[i];
   }
   return result;
@@ -190,7 +190,7 @@ struct bt_vec4 bt_vec4_add(struct bt_vec4 a, struct bt_vec4 b) {
 
 struct bt_vec4 bt_vec4_mul(struct bt_vec4 a, struct bt_vec4 b) {
   typeof(a) result = {};
-  for (size_t i = 0; i < 4; ++i) {
+  for (size_t i = 0; i < 4; i += 1) {
     result.arr[i] = a.arr[i] * b.arr[i];
   }
   return result;
@@ -202,8 +202,8 @@ struct bt_vec4 bt_vec4_splat(float x) {
 
 void bt_mat4_into_columns(struct bt_mat4 const in[static 1],
                           struct bt_vec4 out[restrict static 4]) {
-  for (size_t i = 0; i < 4; ++i) {
-    for (size_t j = 0; j < 4; ++j) {
+  for (size_t i = 0; i < 4; i += 1) {
+    for (size_t j = 0; j < 4; j += 1) {
       out[i].arr[j] = in->arr[j + i * 4];
     }
   }
@@ -217,7 +217,7 @@ void bt_mat4_mul_vec4(struct bt_mat4 const in1[static 1],
   struct bt_vec4 in1_cols[4] = {};
   bt_mat4_into_columns(in1, in1_cols);
 
-  for (size_t i = 0; i < 4; ++i) {
+  for (size_t i = 0; i < 4; i += 1) {
     *out =
         bt_vec4_add(*out, bt_vec4_mul(in1_cols[i], bt_vec4_splat(in2->arr[i])));
   }
@@ -230,12 +230,12 @@ void bt_mat4_mul(struct bt_mat4 const in1[static 1],
   bt_mat4_into_columns(in2, in2_cols);
 
   struct bt_vec4 res[4] = {};
-  for (size_t i = 0; i < 4; ++i) {
+  for (size_t i = 0; i < 4; i += 1) {
     bt_mat4_mul_vec4(in1, &in2_cols[i], &res[i]);
   }
 
-  for (size_t i = 0; i < 4; ++i) {
-    for (size_t j = 0; j < 4; ++j) {
+  for (size_t i = 0; i < 4; i += 1) {
+    for (size_t j = 0; j < 4; j += 1) {
       out->arr[i * 4 + j] = res[i].arr[j];
     }
   }
