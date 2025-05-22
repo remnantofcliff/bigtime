@@ -51,9 +51,8 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   return SDL_APP_CONTINUE;
 }
 
-SDL_AppResult SDL_AppIterate([[maybe_unused]] void *appstate) {
-  struct bt_state *state = appstate;
-  bt_state_render(state);
+SDL_AppResult SDL_AppIterate(void *appstate) {
+  bt_state_render((struct bt_state *)appstate);
   return SDL_APP_CONTINUE;
 }
 
