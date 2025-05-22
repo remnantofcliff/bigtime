@@ -24,9 +24,10 @@ void bt_event_queue_add(struct bt_event_queue event_queue[static 1],
   }
   SDL_UnlockMutex(event_queue->mutex);
 }
-uint16_t
-bt_event_queue_get(struct bt_event_queue event_queue[restrict static 1],
-                   struct bt_event events[restrict static 4096]) {
+uint16_t bt_event_queue_get(
+    struct bt_event_queue event_queue[restrict static 1],
+    struct bt_event
+        events[restrict static SDL_arraysize(event_queue->events)]) {
   SDL_LockMutex(event_queue->mutex);
   uint16_t count = event_queue->cursor;
   SDL_memcpy(events, event_queue->events, count * sizeof(*event_queue->events));

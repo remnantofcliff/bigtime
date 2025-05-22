@@ -1,6 +1,8 @@
 #ifndef BT_INPUT_H
 #define BT_INPUT_H
 
+#include "math.h"
+
 struct bt_input {
   struct {
     bool moving_forwards : 1;
@@ -12,6 +14,9 @@ struct bt_input {
     bool view_moving_left : 1;
     bool view_moving_right : 1;
   } kbd;
+  struct {
+    struct bt_vec2 diff;
+  } mouse;
 };
 
 #endif

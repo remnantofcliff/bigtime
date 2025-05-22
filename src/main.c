@@ -37,6 +37,14 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   case SDL_EVENT_KEY_UP:
     bt_state_handle_keyevent(state, &event->key);
     break;
+  case SDL_EVENT_MOUSE_MOTION:
+    bt_state_handle_mouse_motion_event(state, &event->motion);
+    break;
+  case SDL_EVENT_MOUSE_BUTTON_DOWN:
+    [[fallthrough]];
+  case SDL_EVENT_MOUSE_BUTTON_UP:
+    // event->button.down;
+    break;
   default:
     break;
   }

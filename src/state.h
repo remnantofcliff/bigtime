@@ -6,6 +6,7 @@
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gpu.h>
 #include <SDL3/SDL_video.h>
+#include <stddef.h>
 
 enum bt_gpu_buffer {
   bt_gpu_buffer_font_curve,
@@ -35,10 +36,13 @@ struct bt_state {
   SDL_GPUTransferBuffer *transfer_buffer;
   SDL_GPUBuffer *buffers[bt_gpu_buffer_count];
   uint32_t buffer_sizes[bt_gpu_buffer_count];
+  uint32_t transfer_buffer_offsets[bt_gpu_buffer_count];
   SDL_GPUGraphicsPipeline *graphics_pipeline;
   struct bt_fps_timer fps_timer;
   struct bt_instance_data instance_data[16];
   struct bt_game game;
+  uint32_t width;
+  uint32_t height;
 };
 
 bool bt_state_init(struct bt_state state[static 1]);
@@ -46,6 +50,9 @@ void bt_state_deinit(struct bt_state state[static 1]);
 
 void bt_state_handle_keyevent(struct bt_state state[static 1],
                               SDL_KeyboardEvent const event[static 1]);
+void bt_state_handle_mouse_motion_event(
+    struct bt_state state[static 1],
+    SDL_MouseMotionEvent const event[static 1]);
 bool bt_state_render(struct bt_state state[static 1]);
 void bt_state_update(struct bt_state state[static 1]);
 

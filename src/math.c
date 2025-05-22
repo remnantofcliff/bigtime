@@ -5,11 +5,11 @@
 float bt_recip(float x) { return 1.0f / x; }
 
 struct bt_vec3 bt_cross_product(struct bt_vec3 a, struct bt_vec3 b) {
-  return (struct bt_vec3){{
-      a.arr[1] * b.arr[2] - a.arr[2] * b.arr[1],
-      a.arr[2] * b.arr[0] - a.arr[0] * b.arr[2],
-      a.arr[0] * b.arr[1] - a.arr[1] * b.arr[0],
-  }};
+  return (struct bt_vec3){
+      .x = a.y * b.z - a.z * b.y,
+      .y = a.z * b.x - a.x * b.z,
+      .z = a.x * b.y - a.y * b.x,
+  };
 }
 
 void bt_look_to(struct bt_mat4 out[restrict static 1],
@@ -19,17 +19,17 @@ void bt_look_to(struct bt_mat4 out[restrict static 1],
   struct bt_vec3 f = bt_vec3_negate(*dir);
   struct bt_vec3 s = bt_vec3_normalize(bt_cross_product(f, *up));
   struct bt_vec3 u = bt_cross_product(s, f);
-  out->arr[0] = s.arr[0];
-  out->arr[1] = u.arr[0];
-  out->arr[2] = -f.arr[0];
+  out->arr[0] = s.x;
+  out->arr[1] = u.x;
+  out->arr[2] = -f.x;
   out->arr[3] = 0.0f;
-  out->arr[4] = s.arr[1];
-  out->arr[5] = u.arr[1];
-  out->arr[6] = -f.arr[1];
+  out->arr[4] = s.y;
+  out->arr[5] = u.y;
+  out->arr[6] = -f.y;
   out->arr[7] = 0.0f;
-  out->arr[8] = s.arr[2];
-  out->arr[9] = u.arr[2];
-  out->arr[10] = -f.arr[2];
+  out->arr[8] = s.z;
+  out->arr[9] = u.z;
+  out->arr[10] = -f.z;
   out->arr[11] = 0.0f;
   out->arr[12] = -bt_vec3_dot(*eye, s);
   out->arr[13] = -bt_vec3_dot(*eye, u);
@@ -60,6 +60,14 @@ void bt_perspective(struct bt_mat4 out[static 1], float fovy,
   out->arr[13] = 0.0f;
   out->arr[14] = -r * near;
   out->arr[15] = 0.0f;
+}
+
+struct bt_vec2 bt_vec2_add(struct bt_vec2 a, struct bt_vec2 b) {
+  typeof(a) result = {};
+  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
+    result.arr[i] = a.arr[i] + b.arr[i];
+  }
+  return result;
 }
 
 float bt_vec2_length(struct bt_vec2 a) {
@@ -119,10 +127,10 @@ float bt_vec3_length(struct bt_vec3 a) {
   return SDL_sqrtf(bt_vec3_sum(bt_vec3_mul(a, a)));
 }
 
-struct bt_vec3 bt_vec3_lerp(struct bt_vec3 a, struct bt_vec3 b, float t) {
-  typeof(a) result = {};
-  for (size_t i = 0; i < SDL_arraysize(a.arr); ++i) {
-    result.arr[i] = (b.arr[i] - a.arr[i]) * t + a.arr[i];
+struct bt_vec3 bt_vec3_lerp(struct bt_vec3 from, struct bt_vec3 to, float t) {
+  typeof(from) result = {};
+  for (size_t i = 0; i < SDL_arraysize(from.arr); ++i) {
+    result.arr[i] = (to.arr[i] - from.arr[i]) * t + from.arr[i];
   }
   return result;
 }
@@ -189,12 +197,7 @@ struct bt_vec4 bt_vec4_mul(struct bt_vec4 a, struct bt_vec4 b) {
 }
 
 struct bt_vec4 bt_vec4_splat(float x) {
-  return (struct bt_vec4){{
-      x,
-      x,
-      x,
-      x,
-  }};
+  return (struct bt_vec4){.arr = {x, x, x, x}};
 }
 
 void bt_mat4_into_columns(struct bt_mat4 const in[static 1],

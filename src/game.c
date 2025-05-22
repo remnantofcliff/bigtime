@@ -14,15 +14,15 @@ static void update(struct bt_game game[static 1]) {
 }
 
 static void set_render_info(struct bt_game game[static 1]) {
-  struct bt_render_info render_info = {};
-  render_info.time = SDL_GetTicksNS();
-  render_info.camera_dir = game->camera.dir;
-  render_info.camera_pos = game->camera.eye;
+  struct bt_render_data render_data = {};
+  render_data.camera_dir = game->camera.dir;
+  render_data.camera_pos = game->camera.eye;
+  float blend_factor =
+      (float)game->time.accumulator / (float)bt_time_between_updates;
   SDL_LockMutex(game->render_info_mutex);
-  {
-    game->current_render_info ^= 1;
-    game->render_infos[game->current_render_info] = render_info;
-  }
+  game->render_info.previous_state = game->render_info.current_state;
+  game->render_info.current_state = render_data;
+  game->render_info.blend_factor = blend_factor;
   SDL_UnlockMutex(game->render_info_mutex);
 }
 
@@ -41,37 +41,41 @@ static int update_thread_fn(void *data) {
 
     struct bt_event event_buffer[SDL_arraysize(game->event_queue.events)] = {};
     uint16_t ev_count = bt_event_queue_get(&game->event_queue, event_buffer);
-
     for (uint16_t i = 0; i < ev_count; ++i) {
+      struct bt_event *event = &event_buffer[i];
       switch (event_buffer[i].type) {
       case bt_event_type_key:
         switch (event_buffer[i].key.code) {
         case bt_key_w:
-          game->input.kbd.moving_forwards = event_buffer[i].key.down;
+          game->input.kbd.moving_forwards = event->key.down;
           break;
         case bt_key_a:
-          game->input.kbd.moving_left = event_buffer[i].key.down;
+          game->input.kbd.moving_left = event->key.down;
           break;
         case bt_key_s:
-          game->input.kbd.moving_backwards = event_buffer[i].key.down;
+          game->input.kbd.moving_backwards = event->key.down;
           break;
         case bt_key_d:
-          game->input.kbd.moving_right = event_buffer[i].key.down;
+          game->input.kbd.moving_right = event->key.down;
           break;
         case bt_key_up:
-          game->input.kbd.view_moving_up = event_buffer[i].key.down;
+          game->input.kbd.view_moving_up = event->key.down;
           break;
         case bt_key_down:
-          game->input.kbd.view_moving_down = event_buffer[i].key.down;
+          game->input.kbd.view_moving_down = event->key.down;
           break;
         case bt_key_left:
-          game->input.kbd.view_moving_left = event_buffer[i].key.down;
+          game->input.kbd.view_moving_left = event->key.down;
           break;
         case bt_key_right:
-          game->input.kbd.view_moving_right = event_buffer[i].key.down;
+          game->input.kbd.view_moving_right = event->key.down;
           break;
         default:
         }
+        break;
+      case bt_event_type_mouse_motion:
+        game->input.mouse.diff =
+            bt_vec2_add(game->input.mouse.diff, event->mouse_motion.diff);
         break;
       default:
       }
@@ -80,6 +84,7 @@ static int update_thread_fn(void *data) {
     while (bt_time_should_update(&game->time)) {
       update(game);
       set_render_info(game);
+      SDL_zero(game->input.mouse.diff);
     }
 
     bt_time_end_loop(&game->time);
@@ -116,11 +121,8 @@ void bt_game_stop(struct bt_game game[static 1]) {
 }
 
 void bt_game_get_render_info(struct bt_game const game[static 1],
-                             struct bt_render_info out[static 2]) {
+                             struct bt_render_info out[static 1]) {
   SDL_LockMutex(game->render_info_mutex);
-  {
-    out[0] = game->render_infos[game->current_render_info];
-    out[1] = game->render_infos[game->current_render_info ^ 1];
-  }
+  *out = game->render_info;
   SDL_UnlockMutex(game->render_info_mutex);
 }

@@ -4,6 +4,7 @@
 
 constexpr float movement_speed = 1.0f * bt_dt;
 constexpr float kbd_dir_speed = 1.0f * bt_dt;
+constexpr float mouse_dir_speed = 0.05f * bt_dt;
 constexpr float pitch_clamp_value = bt_pi * 0.5f - bt_pi / 100.0f;
 
 static void bt_camera_update_pitch_yaw(struct bt_camera camera[static 1],
@@ -14,6 +15,8 @@ static void bt_camera_update_pitch_yaw(struct bt_camera camera[static 1],
   camera->pitch +=
       ((float)input->kbd.view_moving_up - (float)input->kbd.view_moving_down) *
       kbd_dir_speed;
+  camera->yaw -= input->mouse.diff.x * mouse_dir_speed;
+  camera->pitch -= input->mouse.diff.y * mouse_dir_speed;
 
   camera->pitch =
       SDL_clamp(camera->pitch, -pitch_clamp_value, pitch_clamp_value);
@@ -37,7 +40,7 @@ static void bt_camera_update_eye(struct bt_camera camera[static 1],
   struct bt_vec3 movement = {};
 
   struct bt_vec3 right =
-      bt_cross_product((struct bt_vec3){{[1] = 1.0f}}, camera->dir);
+      bt_cross_product((struct bt_vec3){.y = 1.0f}, camera->dir);
   right = bt_vec3_normalize(right);
 
   movement = bt_vec3_add(

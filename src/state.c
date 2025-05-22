@@ -4,6 +4,7 @@
 #include "helpers.h"
 #include "math.h"
 #include <SDL3/SDL_timer.h>
+#include <SDL3/SDL_version.h>
 #include <stddef.h>
 
 struct bt_vertex_data {
@@ -61,6 +62,12 @@ static bool bt_create_buffers(struct bt_state state[static 1]) {
   state->buffer_sizes[bt_gpu_buffer_instance] = sizeof(state->instance_data);
   state->buffer_sizes[bt_gpu_buffer_index] = sizeof(bt_index_data_array);
   state->buffer_sizes[bt_gpu_buffer_draw] = sizeof(bt_draw_data_array);
+
+  state->transfer_buffer_offsets[0] = 0;
+  for (enum bt_gpu_buffer i = 1; i < bt_gpu_buffer_count; ++i) {
+    state->transfer_buffer_offsets[i] =
+        state->transfer_buffer_offsets[i - 1] + state->buffer_sizes[i - 1];
+  }
 
   uint32_t transfer_buffer_size = 0;
   for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
@@ -223,6 +230,12 @@ bool bt_state_init(struct bt_state state[static 1]) {
     BT_LOG_SDL_FAIL("Failed to create SDL window");
     return false;
   }
+
+  if (!SDL_SetWindowRelativeMouseMode(state->window, true)) {
+    BT_LOG_SDL_FAIL("Failed to enable relative mouse mode");
+  }
+
+  // SDL_SetRelativeMouseTransform();
 
   state->gpu = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr);
   if (state->window == nullptr) {
@@ -437,40 +450,36 @@ void bt_state_handle_keyevent(struct bt_state state[static 1],
                                                });
 }
 
-static void extrapolate_render_infos(struct bt_render_info infos[static 2],
-                                     struct bt_render_info out[static 1],
-                                     uint64_t current_time) {
-  float t = (float)(current_time - infos[1].time) /
-            (float)(infos[0].time - infos[1].time);
-
-  out->time = current_time;
-  out->camera_pos = bt_vec3_lerp(infos[1].camera_pos, infos[0].camera_pos, t);
-  out->camera_dir = bt_vec3_lerp(infos[1].camera_dir, infos[0].camera_dir, t);
+void bt_state_handle_mouse_motion_event(
+    struct bt_state state[static 1],
+    SDL_MouseMotionEvent const event[static 1]) {
+  bt_event_queue_add(&state->game.event_queue,
+                     &(struct bt_event){
+                         .type = bt_event_type_mouse_motion,
+                         .mouse_motion =
+                             {
+                                 .diff =
+                                     {
+                                         .x = event->xrel,
+                                         .y = event->yrel,
+                                     },
+                             },
+                     });
 }
 
-bool bt_state_render(struct bt_state state[static 1]) {
-  struct bt_fps_report report = {};
-  bt_fps_timer_increment_fps(&state->fps_timer, &report);
-  if (report.did_update) {
-    uint32_t chars[SDL_arraysize(state->instance_data)] = {
-        'F',
-        'P',
-        'S',
-        ':',
-        ' ',
-        report.fps % 100000 / 10000 + '0',
-        report.fps % 10000 / 1000 + '0',
-        report.fps % 1000 / 100 + '0',
-        report.fps % 100 / 10 + '0',
-        report.fps % 10 + '0',
-    };
+static void extrapolate_render_infos(struct bt_render_info info[static 1],
+                                     struct bt_render_data out[static 1]) {
+  out->camera_dir =
+      bt_vec3_lerp(info->previous_state.camera_dir,
+                   info->current_state.camera_dir, info->blend_factor);
+  out->camera_pos =
+      bt_vec3_lerp(info->previous_state.camera_pos,
+                   info->current_state.camera_pos, info->blend_factor);
+}
 
-    bt_state_update_instance_data(state, chars);
-  }
-
-  SDL_GPUCommandBuffer *command_buffer =
-      SDL_AcquireGPUCommandBuffer(state->gpu);
-
+bool bt_copy_data_to_transfer_buffer(struct bt_state state[static 1],
+                                     uint32_t offset, size_t data_size,
+                                     unsigned char data[static data_size]) {
   unsigned char *p =
       SDL_MapGPUTransferBuffer(state->gpu, state->transfer_buffer, true);
   if (p == nullptr) {
@@ -478,65 +487,59 @@ bool bt_state_render(struct bt_state state[static 1]) {
     return false;
   }
 
-  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
-    if (i == bt_gpu_buffer_instance) {
-      break;
-    }
-    p += state->buffer_sizes[i];
-  }
+  p += offset;
 
-  SDL_memcpy(p, state->instance_data, sizeof(state->instance_data));
-
+  SDL_memcpy(p, data, data_size);
   SDL_UnmapGPUTransferBuffer(state->gpu, state->transfer_buffer);
+
+  return true;
+}
+
+bool bt_state_render(struct bt_state state[static 1]) {
+  SDL_GPUCommandBuffer *command_buffer =
+      SDL_AcquireGPUCommandBuffer(state->gpu);
 
   SDL_GPUCopyPass *const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
 
-  uint32_t current_offset = 0;
-  for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; ++i) {
-    if (i == bt_gpu_buffer_instance) {
-      SDL_UploadToGPUBuffer(copy_pass,
-                            &(SDL_GPUTransferBufferLocation){
-                                .transfer_buffer = state->transfer_buffer,
-                                .offset = current_offset,
-                            },
-                            &(SDL_GPUBufferRegion){
-                                .buffer = state->buffers[i],
-                                .size = state->buffer_sizes[i],
-                            },
-                            true);
-      break;
-    }
-    current_offset += state->buffer_sizes[i];
-  }
+  SDL_UploadToGPUBuffer(
+      copy_pass,
+      &(SDL_GPUTransferBufferLocation){
+          .transfer_buffer = state->transfer_buffer,
+          .offset = state->transfer_buffer_offsets[bt_gpu_buffer_instance],
+      },
+      &(SDL_GPUBufferRegion){
+          .buffer = state->buffers[bt_gpu_buffer_instance],
+          .size = state->buffer_sizes[bt_gpu_buffer_instance],
+      },
+      true);
 
   SDL_EndGPUCopyPass(copy_pass);
 
-  struct bt_render_info infos[2] = {};
-  bt_game_get_render_info(&state->game, infos);
+  struct bt_render_info info = {};
+  bt_game_get_render_info(&state->game, &info);
 
-  struct bt_render_info extrapolated = {};
-  extrapolate_render_infos(infos, &extrapolated, SDL_GetTicksNS());
+  struct bt_render_data extrapolated = {};
+  extrapolate_render_infos(&info, &extrapolated);
 
   struct bt_mat4 view = {};
   bt_look_to(&view, &extrapolated.camera_pos, &extrapolated.camera_dir,
-             &(struct bt_vec3){{
-                 [1] = 1.0f,
-             }});
+             &(struct bt_vec3){
+                 .y = 1.0f,
+             });
+
+  struct bt_mat4 proj = {};
+  bt_perspective(&proj, bt_pi * 0.25f,
+                 (float)state->width / (float)state->height, 0.1f, 100.0f);
+  struct bt_mat4 proj_view = {};
+  bt_mat4_mul(&proj, &view, &proj_view);
 
   SDL_GPUTexture *texture = nullptr;
-  uint32_t width = 0;
-  uint32_t height = 0;
   if (!SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, state->window,
-                                             &texture, &width, &height)) {
+                                             &texture, &state->width,
+                                             &state->height)) {
     BT_LOG_SDL_FAIL("Failed to acquire swapchain texture");
     return false;
   }
-
-  struct bt_mat4 proj = {};
-  bt_perspective(&proj, bt_pi * 0.25f, (float)width / (float)height, 0.1f,
-                 100.0f);
-  struct bt_mat4 proj_view = {};
-  bt_mat4_mul(&proj, &view, &proj_view);
 
   if (texture != nullptr) {
     SDL_GPURenderPass *render_pass =
@@ -589,6 +592,32 @@ bool bt_state_render(struct bt_state state[static 1]) {
   if (!SDL_SubmitGPUCommandBuffer(command_buffer)) {
     BT_LOG_SDL_FAIL("Failed to submit command buffer");
     return false;
+  }
+
+  struct bt_fps_report report = {};
+  bt_fps_timer_increment_fps(&state->fps_timer, &report);
+  if (report.did_update) {
+    uint32_t chars[SDL_arraysize(state->instance_data)] = {
+        'F',
+        'P',
+        'S',
+        ':',
+        ' ',
+        report.fps % 100000 / 10000 + '0',
+        report.fps % 10000 / 1000 + '0',
+        report.fps % 1000 / 100 + '0',
+        report.fps % 100 / 10 + '0',
+        report.fps % 10 + '0',
+    };
+
+    bt_state_update_instance_data(state, chars);
+
+    if (!bt_copy_data_to_transfer_buffer(
+            state, state->transfer_buffer_offsets[bt_gpu_buffer_instance],
+            sizeof(state->instance_data),
+            (unsigned char *)state->instance_data)) {
+      return false;
+    }
   }
 
   return true;

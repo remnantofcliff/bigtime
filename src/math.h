@@ -6,15 +6,36 @@
 #define BT_MATH_H
 
 struct bt_vec2 {
-  float arr[2];
+  union {
+    float arr[2];
+    struct {
+      float x;
+      float y;
+    };
+  };
 };
 
 struct bt_vec3 {
-  float arr[3];
+  union {
+    float arr[3];
+    struct {
+      float x;
+      float y;
+      float z;
+    };
+  };
 };
 
 struct bt_vec4 {
-  float arr[4];
+  union {
+    float arr[4];
+    struct {
+      float x;
+      float y;
+      float z;
+      float w;
+    };
+  };
 };
 
 /*
@@ -50,6 +71,7 @@ void bt_look_to(struct bt_mat4 out[restrict static 1],
 void bt_perspective(struct bt_mat4 out[static 1], float fovy,
                     float aspect_ratio, float near, float far);
 
+struct bt_vec2 bt_vec2_add(struct bt_vec2 a, struct bt_vec2 b);
 float bt_vec2_length(struct bt_vec2 a);
 struct bt_vec2 bt_vec2_mul(struct bt_vec2 a, struct bt_vec2 b);
 struct bt_vec2 bt_vec2_mulf(struct bt_vec2 a, float b);
@@ -63,7 +85,7 @@ float bt_vec2_sum(struct bt_vec2 a);
 struct bt_vec3 bt_vec3_add(struct bt_vec3 a, struct bt_vec3 b);
 float bt_vec3_dot(struct bt_vec3 a, struct bt_vec3 b);
 float bt_vec3_length(struct bt_vec3 a);
-struct bt_vec3 bt_vec3_lerp(struct bt_vec3 a, struct bt_vec3 b, float t);
+struct bt_vec3 bt_vec3_lerp(struct bt_vec3 from, struct bt_vec3 to, float t);
 struct bt_vec3 bt_vec3_mul(struct bt_vec3 a, struct bt_vec3 b);
 struct bt_vec3 bt_vec3_mulf(struct bt_vec3 a, float b);
 struct bt_vec3 bt_vec3_negate(struct bt_vec3 a);
