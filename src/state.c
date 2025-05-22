@@ -604,6 +604,7 @@ bool bt_state_render(struct bt_state state[static 1]) {
       SDL_AcquireGPUCommandBuffer(state->gpu);
   if (!command_buffer) {
     BT_LOG_SDL_FAIL("Failed to acquire command buffer");
+    return false;
   }
 
   SDL_GPUCopyPass *const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
