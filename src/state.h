@@ -26,7 +26,7 @@ struct bt_instance_data {
   float translation[3];
   uint32_t c;
 };
-#include <limits.h>
+
 struct bt_state {
   SDL_Window *window;
   SDL_GPUDevice *gpu;
