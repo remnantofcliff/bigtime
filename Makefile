@@ -45,11 +45,11 @@ LINKER_FLAGS := -lSDL3
 REQUIREMENTS := Makefile ${SPIRV}
 
 ifeq (${type}, default)
-FLAGS := ${FLAGS} -g -fsanitize=address,undefined -D GU_DEBUG
+FLAGS := ${FLAGS} -g -fsanitize=address,undefined -D BT_DEBUG
 SHADER_FLAGS := -g
 endif
 ifeq (${type}, debug)
-FLAGS := ${FLAGS} -g -D GU_DEBUG
+FLAGS := ${FLAGS} -g -D BT_DEBUG
 SHADER_FLAGS := -g
 endif
 ifeq (${type}, release)
