@@ -477,9 +477,10 @@ static void extrapolate_render_infos(struct bt_render_info info[static 1],
                    info->current_state.camera_pos, info->blend_factor);
 }
 
-bool bt_copy_data_to_transfer_buffer(struct bt_state state[static 1],
-                                     uint32_t offset, size_t data_size,
-                                     unsigned char data[static data_size]) {
+static bool
+bt_state_copy_data_to_transfer_buffer(struct bt_state state[static 1],
+                                      uint32_t offset, size_t data_size,
+                                      unsigned char data[static data_size]) {
   unsigned char *p =
       SDL_MapGPUTransferBuffer(state->gpu, state->transfer_buffer, true);
   if (!p) {
@@ -499,8 +500,8 @@ struct bt_uniforms {
   struct bt_mat4 proj_view;
 };
 
-void bt_state_get_uniform_data(struct bt_state state[static 1],
-                               struct bt_uniforms out[static 1]) {
+static void bt_state_get_uniform_data(struct bt_state state[static 1],
+                                      struct bt_uniforms out[static 1]) {
   struct bt_render_info info = {};
   bt_game_get_render_info(&state->game, &info);
 
@@ -519,7 +520,7 @@ void bt_state_get_uniform_data(struct bt_state state[static 1],
   bt_mat4_mul(&proj, &view, &out->proj_view);
 }
 
-bool update_fps(struct bt_state state[static 1]) {
+static bool bt_state_update_fps(struct bt_state state[static 1]) {
   struct bt_fps_report report = {};
   bt_fps_timer_increment_fps(&state->fps_timer, &report);
   if (report.did_update) {
@@ -538,7 +539,7 @@ bool update_fps(struct bt_state state[static 1]) {
 
     bt_state_update_instance_data(state, chars);
 
-    if (!bt_copy_data_to_transfer_buffer(
+    if (!bt_state_copy_data_to_transfer_buffer(
             state, state->transfer_buffer_offsets[bt_gpu_buffer_instance],
             sizeof(state->instance_data),
             (unsigned char *)state->instance_data)) {
@@ -549,8 +550,8 @@ bool update_fps(struct bt_state state[static 1]) {
   return true;
 }
 
-void bt_state_copy_instance_data(struct bt_state state[static 1],
-                                 SDL_GPUCopyPass *copy_pass) {
+static void bt_state_copy_instance_data(struct bt_state state[static 1],
+                                        SDL_GPUCopyPass *copy_pass) {
   constexpr enum bt_gpu_buffer buffer = bt_gpu_buffer_instance;
 
   SDL_UploadToGPUBuffer(copy_pass,
@@ -565,8 +566,8 @@ void bt_state_copy_instance_data(struct bt_state state[static 1],
                         true);
 }
 
-void bt_state_render_text(struct bt_state state[static 1],
-                          SDL_GPURenderPass *render_pass) {
+static void bt_state_render_text(struct bt_state state[static 1],
+                                 SDL_GPURenderPass *render_pass) {
   SDL_BindGPUGraphicsPipeline(render_pass, state->graphics_pipeline);
   SDL_BindGPUVertexBuffers(
       render_pass, 0,
@@ -652,7 +653,7 @@ submit:
   }
 
   if (result) {
-    update_fps(state);
+    bt_state_update_fps(state);
   }
 
   return result;

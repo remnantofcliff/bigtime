@@ -54,6 +54,5 @@ void bt_state_handle_mouse_motion_event(
     struct bt_state state[static 1],
     SDL_MouseMotionEvent const event[static 1]);
 bool bt_state_render(struct bt_state state[static 1]);
-void bt_state_update(struct bt_state state[static 1]);
 
 #endif
