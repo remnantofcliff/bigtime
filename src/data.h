@@ -18,20 +18,23 @@ struct bt_font_metrics {
   float advance;
 };
 
-extern uint32_t const *const bt_vertex_shader_spirv;
-extern uint32_t const *const bt_fragment_shader_spirv;
+extern uint32_t const *const bt_glyph2d_vertex_spirv;
+extern uint32_t const *const bt_glyph3d_vertex_spirv;
+extern uint32_t const *const bt_glyph_fragment_spirv;
 extern struct bt_font_curve const *const bt_font_curves;
 extern struct bt_font_curve_info const *const bt_font_curve_infos;
 extern struct bt_font_metrics const *const bt_font_metrics;
 
-extern uint32_t const bt_vertex_shader_spirv_byte_size;
-extern uint32_t const bt_fragment_shader_spirv_byte_size;
+extern uint32_t const bt_glyph2d_vertex_spirv_byte_size;
+extern uint32_t const bt_glyph3d_vertex_spirv_byte_size;
+extern uint32_t const bt_glyph_fragment_spirv_byte_size;
 extern uint32_t const bt_font_curves_byte_size;
 extern uint32_t const bt_font_curve_infos_byte_size;
 extern uint32_t const bt_font_metrics_byte_size;
 
-extern uint32_t const bt_vertex_shader_spirv_len;
-extern uint32_t const bt_fragment_shader_spirv_len;
+extern uint32_t const bt_glyph2d_vertex_spirv_len;
+extern uint32_t const bt_glyph3d_vertex_spirv_len;
+extern uint32_t const bt_glyph_fragment_spirv_len;
 extern uint32_t const bt_font_curves_len;
 extern uint32_t const bt_font_curve_infos_len;
 extern uint32_t const bt_font_metrics_len;

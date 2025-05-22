@@ -1,7 +1,8 @@
 #version 460
 
 layout(std140, set = 1, binding = 0) uniform readonly uniforms {
-    mat4x4 u_projView;
+    mat4x4 u_proj_view;
+    float u_aspect_ratio;
 };
 
 layout(location = 0) in vec3 in_color;
@@ -66,5 +67,5 @@ void main() {
     out_char = in_char;
     mat3 rot_mat = quat_to_mat3(rotation);
     mat4 model = mat4(vec4(rot_mat[0] * scale.x, 0.0), vec4(rot_mat[1] * scale.y, 0.0), vec4(rot_mat[2] * scale.z, 0.0), vec4(translation, 1.0));
-    gl_Position = u_projView * model * vec4(pos, 0.0, 1.0);
+    gl_Position = u_proj_view * model * vec4(pos, 0.0, 1.0);
 }

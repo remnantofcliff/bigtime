@@ -9,10 +9,11 @@
 #include <stddef.h>
 
 enum bt_gpu_buffer {
-  bt_gpu_buffer_font_curve,
+  bt_gpu_buffer_font_curve = 0,
   bt_gpu_buffer_font_curve_info,
   bt_gpu_buffer_vertex,
-  bt_gpu_buffer_instance,
+  bt_gpu_buffer_glyph2d_instance,
+  bt_gpu_buffer_glyph3d_instance,
   bt_gpu_buffer_index,
   bt_gpu_buffer_draw,
   /*
@@ -21,7 +22,33 @@ enum bt_gpu_buffer {
   bt_gpu_buffer_count,
 };
 
-struct bt_instance_data {
+enum bt_shader {
+  bt_shader_glyph2d_vert = 0,
+  bt_shader_glyph3d_vert,
+  bt_shader_glyph_frag,
+  /*
+   * Number of shaders
+   */
+  bt_shader_count,
+};
+
+enum bt_render_pipeline {
+  bt_render_pipeline_glyph2d = 0,
+  bt_render_pipeline_glyph3d,
+  /*
+   * Number of render pipelines
+   */
+  bt_render_pipeline_count,
+};
+
+struct bt_glyph2d_instance_data {
+  float scale[2];
+  float rotation;
+  float translation[2];
+  uint32_t c;
+};
+
+struct bt_glyph3d_instance_data {
   float scale[3];
   float rotation[4];
   float translation[3];
@@ -31,15 +58,15 @@ struct bt_instance_data {
 struct bt_state {
   SDL_Window *window;
   SDL_GPUDevice *gpu;
-  SDL_GPUShader *vertex_shader;
-  SDL_GPUShader *fragment_shader;
+  SDL_GPUShader *shaders[3];
   SDL_GPUTransferBuffer *transfer_buffer;
   SDL_GPUBuffer *buffers[bt_gpu_buffer_count];
   uint32_t buffer_sizes[bt_gpu_buffer_count];
   uint32_t transfer_buffer_offsets[bt_gpu_buffer_count];
-  SDL_GPUGraphicsPipeline *graphics_pipeline;
+  SDL_GPUGraphicsPipeline *render_pipelines[bt_render_pipeline_count];
   struct bt_fps_timer fps_timer;
-  struct bt_instance_data instance_data[16];
+  struct bt_glyph2d_instance_data glyph2d_instance_data[16];
+  struct bt_glyph3d_instance_data glyph3d_instance_data[16];
   struct bt_game game;
   uint32_t width;
   uint32_t height;

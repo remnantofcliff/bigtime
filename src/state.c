@@ -30,7 +30,8 @@ constexpr SDL_GPUIndexedIndirectDrawCommand bt_draw_data_array[] = {
     {
 
         .num_indices = 6,
-        .num_instances = SDL_arraysize((struct bt_state){}.instance_data),
+        .num_instances =
+            SDL_arraysize((struct bt_state){}.glyph3d_instance_data),
         .first_index = 0,
         .vertex_offset = 0,
         .first_instance = 0,
@@ -41,7 +42,8 @@ constexpr SDL_GPUBufferUsageFlags bt_gpu_buffer_flags[] = {
     [bt_gpu_buffer_font_curve] = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
     [bt_gpu_buffer_font_curve_info] = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
     [bt_gpu_buffer_vertex] = SDL_GPU_BUFFERUSAGE_VERTEX,
-    [bt_gpu_buffer_instance] = SDL_GPU_BUFFERUSAGE_VERTEX,
+    [bt_gpu_buffer_glyph2d_instance] = SDL_GPU_BUFFERUSAGE_VERTEX,
+    [bt_gpu_buffer_glyph3d_instance] = SDL_GPU_BUFFERUSAGE_VERTEX,
     [bt_gpu_buffer_index] = SDL_GPU_BUFFERUSAGE_INDEX,
     [bt_gpu_buffer_draw] = SDL_GPU_BUFFERUSAGE_INDIRECT,
 };
@@ -49,7 +51,8 @@ static char const *const bt_gpu_buffer_names[] = {
     [bt_gpu_buffer_font_curve] = "font curve buffer",
     [bt_gpu_buffer_font_curve_info] = "font curve info buffer",
     [bt_gpu_buffer_vertex] = "vertex buffer",
-    [bt_gpu_buffer_instance] = "instance buffer",
+    [bt_gpu_buffer_glyph2d_instance] = "glyph2d instance buffer",
+    [bt_gpu_buffer_glyph3d_instance] = "glyph3d instance buffer",
     [bt_gpu_buffer_index] = "index buffer",
     [bt_gpu_buffer_draw] = "draw buffer",
 };
@@ -59,7 +62,10 @@ static bool bt_create_buffers(struct bt_state state[static 1]) {
   state->buffer_sizes[bt_gpu_buffer_font_curve_info] =
       bt_font_curve_infos_byte_size;
   state->buffer_sizes[bt_gpu_buffer_vertex] = sizeof(bt_vertex_data_array);
-  state->buffer_sizes[bt_gpu_buffer_instance] = sizeof(state->instance_data);
+  state->buffer_sizes[bt_gpu_buffer_glyph2d_instance] =
+      sizeof(state->glyph2d_instance_data);
+  state->buffer_sizes[bt_gpu_buffer_glyph3d_instance] =
+      sizeof(state->glyph3d_instance_data);
   state->buffer_sizes[bt_gpu_buffer_index] = sizeof(bt_index_data_array);
   state->buffer_sizes[bt_gpu_buffer_draw] = sizeof(bt_draw_data_array);
 
@@ -102,11 +108,11 @@ static bool bt_initialize_transfer_buffer(struct bt_state state[static 1]) {
       [bt_gpu_buffer_font_curve] = bt_font_curves,
       [bt_gpu_buffer_font_curve_info] = bt_font_curve_infos,
       [bt_gpu_buffer_vertex] = bt_vertex_data_array,
-      [bt_gpu_buffer_instance] = state->instance_data,
+      [bt_gpu_buffer_glyph2d_instance] = state->glyph2d_instance_data,
+      [bt_gpu_buffer_glyph3d_instance] = state->glyph3d_instance_data,
       [bt_gpu_buffer_index] = bt_index_data_array,
       [bt_gpu_buffer_draw] = bt_draw_data_array,
   };
-  static_assert(SDL_arraysize(data) == bt_gpu_buffer_count);
 
   unsigned char *p =
       SDL_MapGPUTransferBuffer(state->gpu, state->transfer_buffer, true);
@@ -173,53 +179,246 @@ static bool bt_initialize_buffers(struct bt_state state[static 1]) {
 }
 
 static bool bt_create_shaders(struct bt_state state[static 1]) {
-  state->vertex_shader = SDL_CreateGPUShader(
-      state->gpu, &(SDL_GPUShaderCreateInfo){
-                      .code_size = bt_vertex_shader_spirv_byte_size,
-                      .code = (uint8_t const *)bt_vertex_shader_spirv,
-                      .entrypoint = "main",
-                      .format = SDL_GPU_SHADERFORMAT_SPIRV,
-                      .stage = SDL_GPU_SHADERSTAGE_VERTEX,
-                      .num_uniform_buffers = 1,
-                  });
-  if (!state->vertex_shader) {
-    BT_LOG_SDL_FAIL("Failed to create vertex shader");
-    return false;
-  }
+  size_t const shader_source_sizes[] = {
+      [bt_shader_glyph2d_vert] = bt_glyph2d_vertex_spirv_byte_size,
+      [bt_shader_glyph3d_vert] = bt_glyph3d_vertex_spirv_byte_size,
+      [bt_shader_glyph_frag] = bt_glyph_fragment_spirv_byte_size,
+  };
+  uint8_t const *const shader_sources[] = {
+      [bt_shader_glyph2d_vert] = (uint8_t const *)bt_glyph2d_vertex_spirv,
+      [bt_shader_glyph3d_vert] = (uint8_t const *)bt_glyph3d_vertex_spirv,
+      [bt_shader_glyph_frag] = (uint8_t const *)bt_glyph_fragment_spirv,
+  };
+  SDL_GPUShaderStage const shader_stages[] = {
+      [bt_shader_glyph2d_vert] = SDL_GPU_SHADERSTAGE_VERTEX,
+      [bt_shader_glyph3d_vert] = SDL_GPU_SHADERSTAGE_VERTEX,
+      [bt_shader_glyph_frag] = SDL_GPU_SHADERSTAGE_FRAGMENT,
+  };
+  constexpr uint32_t sampler_counts[] = {
+      [bt_shader_glyph2d_vert] = 0,
+      [bt_shader_glyph3d_vert] = 0,
+      [bt_shader_glyph_frag] = 0,
+  };
+  constexpr uint32_t storage_texture_counts[] = {
+      [bt_shader_glyph2d_vert] = 0,
+      [bt_shader_glyph3d_vert] = 0,
+      [bt_shader_glyph_frag] = 0,
+  };
+  constexpr uint32_t storage_buffer_counts[] = {
+      [bt_shader_glyph2d_vert] = 0,
+      [bt_shader_glyph3d_vert] = 0,
+      [bt_shader_glyph_frag] = 2,
+  };
+  constexpr uint32_t uniform_counts[] = {
+      [bt_shader_glyph2d_vert] = 2,
+      [bt_shader_glyph3d_vert] = 1,
+      [bt_shader_glyph_frag] = 0,
+  };
 
-  state->fragment_shader = SDL_CreateGPUShader(
-      state->gpu, &(SDL_GPUShaderCreateInfo){
-                      .code_size = bt_fragment_shader_spirv_byte_size,
-                      .code = (uint8_t const *)bt_fragment_shader_spirv,
-                      .entrypoint = "main",
-                      .format = SDL_GPU_SHADERFORMAT_SPIRV,
-                      .stage = SDL_GPU_SHADERSTAGE_FRAGMENT,
-                      .num_storage_buffers = 2,
-                  });
-  if (!state->fragment_shader) {
-    BT_LOG_SDL_FAIL("Failed to create fragment shader");
-    return false;
+  for (enum bt_shader i = 0; i < bt_shader_count; i += 1) {
+    state->shaders[i] = SDL_CreateGPUShader(
+        state->gpu, &(SDL_GPUShaderCreateInfo){
+                        .code_size = shader_source_sizes[i],
+                        .code = shader_sources[i],
+                        .entrypoint = "main",
+                        .format = SDL_GPU_SHADERFORMAT_SPIRV,
+                        .stage = shader_stages[i],
+                        .num_samplers = sampler_counts[i],
+                        .num_storage_textures = storage_texture_counts[i],
+                        .num_storage_buffers = storage_buffer_counts[i],
+                        .num_uniform_buffers = uniform_counts[i],
+                    });
+    if (!state->shaders[i]) {
+      BT_LOG_SDL_FAIL("Failed to create vertex shader");
+      return false;
+    }
   }
 
   return true;
 }
 
-#include <stdio.h>
+static bool bt_create_render_pipelines(struct bt_state state[static 1]) {
+  constexpr enum bt_shader vertex_shaders[] = {
+      [bt_render_pipeline_glyph2d] = bt_shader_glyph2d_vert,
+      [bt_render_pipeline_glyph3d] = bt_shader_glyph3d_vert,
+  };
 
-static void bt_state_update_instance_data(
-    struct bt_state state[static 1],
-    uint32_t const chars[static SDL_arraysize(state->instance_data)]) {
-  float advance = 0.0f;
-  for (size_t i = 0; i < SDL_arraysize(state->instance_data); i += 1) {
-    struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
-    state->instance_data[i].scale[0] = 1.0f;
-    state->instance_data[i].scale[1] = 1.0f;
-    state->instance_data[i].scale[2] = 1.0f;
-    state->instance_data[i].translation[0] = advance;
-    state->instance_data[i].translation[1] = 0.0f;
-    state->instance_data[i].c = chars[i];
-    advance += metrics->advance;
+  constexpr enum bt_shader fragment_shaders[] = {
+      [bt_render_pipeline_glyph2d] = bt_shader_glyph_frag,
+      [bt_render_pipeline_glyph3d] = bt_shader_glyph_frag,
+  };
+
+  constexpr SDL_GPUVertexBufferDescription
+      glyph2d_vertex_buffer_descriptions[] = {
+          {
+              .slot = 0,
+              .pitch = sizeof(struct bt_vertex_data),
+              .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+          },
+          {
+              .slot = 1,
+              .pitch = sizeof(struct bt_glyph2d_instance_data),
+              .input_rate = SDL_GPU_VERTEXINPUTRATE_INSTANCE,
+          },
+      };
+
+  constexpr SDL_GPUVertexBufferDescription
+      glyph3d_vertex_buffer_descriptions[] = {
+          {
+              .slot = 0,
+              .pitch = sizeof(struct bt_vertex_data),
+              .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
+          },
+          {
+              .slot = 1,
+              .pitch = sizeof(struct bt_glyph3d_instance_data),
+              .input_rate = SDL_GPU_VERTEXINPUTRATE_INSTANCE,
+          },
+      };
+
+  SDL_GPUVertexBufferDescription const *const vertex_buffer_descriptions[] = {
+      [bt_render_pipeline_glyph2d] = glyph2d_vertex_buffer_descriptions,
+      [bt_render_pipeline_glyph3d] = glyph3d_vertex_buffer_descriptions,
+  };
+
+  constexpr uint32_t vertex_buffer_description_counts[] = {
+      [bt_render_pipeline_glyph2d] =
+          SDL_arraysize(glyph2d_vertex_buffer_descriptions),
+      [bt_render_pipeline_glyph3d] =
+          SDL_arraysize(glyph3d_vertex_buffer_descriptions),
+  };
+
+  constexpr SDL_GPUVertexAttribute glyph2d_vertex_attributes[] = {
+      {
+          .location = 0,
+          .buffer_slot = 0,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+          .offset = offsetof(struct bt_vertex_data, color),
+      },
+      {
+          .location = 1,
+          .buffer_slot = 1,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+          .offset = offsetof(typeof(*state->glyph2d_instance_data), scale),
+      },
+      {
+          .location = 2,
+          .buffer_slot = 1,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT,
+          .offset = offsetof(typeof(*state->glyph2d_instance_data), rotation),
+      },
+      {
+          .location = 3,
+          .buffer_slot = 1,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT2,
+          .offset =
+              offsetof(typeof(*state->glyph2d_instance_data), translation),
+      },
+      {
+          .location = 4,
+          .buffer_slot = 1,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_UINT,
+          .offset = offsetof(typeof(*state->glyph2d_instance_data), c),
+      },
+  };
+  constexpr SDL_GPUVertexAttribute glyph3d_vertex_attributes[] = {
+      {
+          .location = 0,
+          .buffer_slot = 0,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+          .offset = offsetof(struct bt_vertex_data, color),
+      },
+      {
+          .location = 1,
+          .buffer_slot = 1,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+          .offset = offsetof(typeof(*state->glyph3d_instance_data), scale),
+      },
+      {
+          .location = 2,
+          .buffer_slot = 1,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
+          .offset = offsetof(typeof(*state->glyph3d_instance_data), rotation),
+      },
+      {
+          .location = 3,
+          .buffer_slot = 1,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
+          .offset =
+              offsetof(typeof(*state->glyph3d_instance_data), translation),
+      },
+      {
+          .location = 4,
+          .buffer_slot = 1,
+          .format = SDL_GPU_VERTEXELEMENTFORMAT_UINT,
+          .offset = offsetof(typeof(*state->glyph3d_instance_data), c),
+      },
+  };
+
+  SDL_GPUVertexAttribute const *const vertex_attributes[] = {
+      [bt_render_pipeline_glyph2d] = glyph2d_vertex_attributes,
+      [bt_render_pipeline_glyph3d] = glyph3d_vertex_attributes,
+  };
+
+  constexpr uint32_t vertex_attribute_counts[] = {
+      [bt_render_pipeline_glyph2d] = SDL_arraysize(glyph2d_vertex_attributes),
+      [bt_render_pipeline_glyph3d] = SDL_arraysize(glyph3d_vertex_attributes),
+  };
+
+  SDL_GPUTextureFormat format =
+      SDL_GetGPUSwapchainTextureFormat(state->gpu, state->window);
+  for (enum bt_render_pipeline i = 0; i < bt_render_pipeline_count; ++i) {
+    state->render_pipelines[i] = SDL_CreateGPUGraphicsPipeline(
+        state->gpu,
+        &(SDL_GPUGraphicsPipelineCreateInfo){
+            .vertex_shader = state->shaders[vertex_shaders[i]],
+            .fragment_shader = state->shaders[fragment_shaders[i]],
+            .vertex_input_state =
+                {
+                    .vertex_buffer_descriptions = vertex_buffer_descriptions[i],
+                    .num_vertex_buffers = vertex_buffer_description_counts[i],
+                    .vertex_attributes = vertex_attributes[i],
+                    .num_vertex_attributes = vertex_attribute_counts[i],
+                },
+            .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+            .rasterizer_state =
+                {
+                    .fill_mode = SDL_GPU_FILLMODE_FILL,
+                    .cull_mode = SDL_GPU_CULLMODE_BACK,
+                    .front_face = SDL_GPU_FRONTFACE_CLOCKWISE,
+                },
+            .target_info =
+                {
+                    .color_target_descriptions =
+                        (SDL_GPUColorTargetDescription[]){
+                            {
+                                .format = format,
+                                .blend_state =
+                                    {
+                                        .src_color_blendfactor =
+                                            SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                                        .dst_color_blendfactor =
+                                            SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                                        .color_blend_op = SDL_GPU_BLENDOP_ADD,
+                                        .src_alpha_blendfactor =
+                                            SDL_GPU_BLENDFACTOR_ONE,
+                                        .dst_alpha_blendfactor =
+                                            SDL_GPU_BLENDFACTOR_ZERO,
+                                        .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+                                        .enable_blend = true,
+                                    },
+                            },
+                        },
+                    .num_color_targets = 1,
+                },
+        });
+    if (!state->render_pipelines[i]) {
+      BT_LOG_SDL_FAIL("Failed to create render pipeline");
+      return false;
+    }
   }
+
+  return true;
 }
 
 bool bt_state_init(struct bt_state state[static 1]) {
@@ -260,102 +459,7 @@ bool bt_state_init(struct bt_state state[static 1]) {
     return false;
   }
 
-  state->graphics_pipeline = SDL_CreateGPUGraphicsPipeline(
-      state->gpu,
-      &(SDL_GPUGraphicsPipelineCreateInfo){
-          .vertex_shader = state->vertex_shader,
-          .fragment_shader = state->fragment_shader,
-          .vertex_input_state =
-              {
-                  .vertex_buffer_descriptions =
-                      (SDL_GPUVertexBufferDescription[]){
-                          {
-                              .slot = 0,
-                              .pitch = sizeof(*bt_vertex_data_array),
-                              .input_rate = SDL_GPU_VERTEXINPUTRATE_VERTEX,
-                          },
-                          {
-                              .slot = 1,
-                              .pitch = sizeof(*state->instance_data),
-                              .input_rate = SDL_GPU_VERTEXINPUTRATE_INSTANCE,
-                          },
-                      },
-                  .num_vertex_buffers = 2,
-                  .vertex_attributes =
-                      (SDL_GPUVertexAttribute[]){
-                          {
-                              .location = 0,
-                              .buffer_slot = 0,
-                              .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-                              .offset = 0,
-                          },
-                          {
-                              .location = 1,
-                              .buffer_slot = 1,
-                              .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-                              .offset = offsetof(typeof(*state->instance_data),
-                                                 scale),
-                          },
-                          {
-                              .location = 2,
-                              .buffer_slot = 1,
-                              .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT4,
-                              .offset = offsetof(typeof(*state->instance_data),
-                                                 rotation),
-                          },
-                          {
-                              .location = 3,
-                              .buffer_slot = 1,
-                              .format = SDL_GPU_VERTEXELEMENTFORMAT_FLOAT3,
-                              .offset = offsetof(typeof(*state->instance_data),
-                                                 translation),
-                          },
-                          {
-                              .location = 4,
-                              .buffer_slot = 1,
-                              .format = SDL_GPU_VERTEXELEMENTFORMAT_UINT,
-                              .offset =
-                                  offsetof(typeof(*state->instance_data), c),
-                          },
-                      },
-                  .num_vertex_attributes = 5,
-              },
-          .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-          .rasterizer_state =
-              {
-                  .fill_mode = SDL_GPU_FILLMODE_FILL,
-                  .cull_mode = SDL_GPU_CULLMODE_BACK,
-                  .front_face = SDL_GPU_FRONTFACE_CLOCKWISE,
-              },
-          .target_info =
-              {
-                  .color_target_descriptions =
-                      (SDL_GPUColorTargetDescription[]){
-                          {
-                              .format = SDL_GetGPUSwapchainTextureFormat(
-                                  state->gpu, state->window),
-                              .blend_state =
-                                  {
-                                      .src_color_blendfactor =
-                                          SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-                                      .dst_color_blendfactor =
-                                          SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                                      .color_blend_op = SDL_GPU_BLENDOP_ADD,
-                                      .src_alpha_blendfactor =
-                                          SDL_GPU_BLENDFACTOR_ONE,
-                                      .dst_alpha_blendfactor =
-                                          SDL_GPU_BLENDFACTOR_ZERO,
-                                      .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
-                                      .enable_blend = true,
-                                  },
-                          },
-                      },
-                  .num_color_targets = 1,
-              },
-      });
-
-  if (!state->graphics_pipeline) {
-    BT_LOG_SDL_FAIL("Failed to create graphics pipeline");
+  if (!bt_create_render_pipelines(state)) {
     return false;
   }
 
@@ -369,14 +473,15 @@ bool bt_state_init(struct bt_state state[static 1]) {
 void bt_state_deinit(struct bt_state state[static 1]) {
   bt_game_stop(&state->game);
 
-  if (state->graphics_pipeline) {
-    SDL_ReleaseGPUGraphicsPipeline(state->gpu, state->graphics_pipeline);
+  for (enum bt_render_pipeline i = 0; i < bt_render_pipeline_count; i += 1) {
+    if (state->render_pipelines[i]) {
+      SDL_ReleaseGPUGraphicsPipeline(state->gpu, state->render_pipelines[i]);
+    }
   }
-  if (state->fragment_shader) {
-    SDL_ReleaseGPUShader(state->gpu, state->fragment_shader);
-  }
-  if (state->vertex_shader) {
-    SDL_ReleaseGPUShader(state->gpu, state->vertex_shader);
+  for (enum bt_shader i = 0; i < bt_shader_count; i += 1) {
+    if (state->shaders[i]) {
+      SDL_ReleaseGPUShader(state->gpu, state->shaders[i]);
+    }
   }
   for (enum bt_gpu_buffer i = 0; i < bt_gpu_buffer_count; i += 1) {
     if (state->buffers[i]) {
@@ -496,8 +601,48 @@ bt_state_copy_data_to_transfer_buffer(struct bt_state state[static 1],
   return true;
 }
 
+static void bt_state_update_glyph2d_instance_data(
+    struct bt_state state[static 1],
+    uint32_t const chars[static SDL_arraysize(state->glyph2d_instance_data)]) {
+  float advance = 0.0f;
+  for (size_t i = 0; i < SDL_arraysize(state->glyph2d_instance_data); i += 1) {
+    struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
+    float scale = 0.1f;
+    state->glyph2d_instance_data[i].scale[0] = scale;
+    state->glyph2d_instance_data[i].scale[1] = scale;
+    state->glyph2d_instance_data[i].rotation = 0.0f;
+    state->glyph2d_instance_data[i].translation[0] =
+        advance - 1.0f +
+        (0.5f * scale) * ((float)state->height / (float)state->width);
+    state->glyph2d_instance_data[i].translation[1] = 0.0f + 1.0f - 0.5f * scale;
+    state->glyph2d_instance_data[i].c = chars[i];
+    advance += metrics->advance * scale;
+  }
+}
+static void bt_state_update_glyph3d_instance_data(
+    struct bt_state state[static 1],
+    uint32_t const chars[static SDL_arraysize(state->glyph3d_instance_data)]) {
+  float advance = 0.0f;
+  for (size_t i = 0; i < SDL_arraysize(state->glyph3d_instance_data); i += 1) {
+    struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
+    state->glyph3d_instance_data[i].scale[0] = 1.0f;
+    state->glyph3d_instance_data[i].scale[1] = 1.0f;
+    state->glyph3d_instance_data[i].scale[2] = 1.0f;
+    state->glyph3d_instance_data[i].rotation[0] = 0.0f;
+    state->glyph3d_instance_data[i].rotation[1] = 0.0f;
+    state->glyph3d_instance_data[i].rotation[2] = 0.0f;
+    state->glyph3d_instance_data[i].rotation[3] = 1.0f;
+    state->glyph3d_instance_data[i].translation[0] = advance;
+    state->glyph3d_instance_data[i].translation[1] = 0.0f;
+    state->glyph3d_instance_data[i].translation[2] = 0.0f;
+    state->glyph3d_instance_data[i].c = chars[i];
+    advance += metrics->advance;
+  }
+}
+
 struct bt_uniforms {
-  struct bt_mat4 proj_view;
+  alignas(16) struct bt_mat4 proj_view;
+  float aspect_ratio;
 };
 
 static void bt_state_get_uniform_data(struct bt_state state[static 1],
@@ -514,9 +659,9 @@ static void bt_state_get_uniform_data(struct bt_state state[static 1],
                  .y = 1.0f,
              });
 
+  out->aspect_ratio = (float)state->width / (float)state->height;
   struct bt_mat4 proj = {};
-  bt_perspective(&proj, bt_pi * 0.25f,
-                 (float)state->width / (float)state->height, 0.1f, 100.0f);
+  bt_perspective(&proj, bt_pi * 0.25f, out->aspect_ratio, 0.1f, 100.0f);
   bt_mat4_mul(&proj, &view, &out->proj_view);
 }
 
@@ -524,7 +669,7 @@ static bool bt_state_update_fps(struct bt_state state[static 1]) {
   struct bt_fps_report report = {};
   bt_fps_timer_increment_fps(&state->fps_timer, &report);
   if (report.did_update) {
-    uint32_t chars[SDL_arraysize(state->instance_data)] = {
+    uint32_t chars2d[SDL_arraysize(state->glyph2d_instance_data)] = {
         'F',
         'P',
         'S',
@@ -537,12 +682,22 @@ static bool bt_state_update_fps(struct bt_state state[static 1]) {
         report.fps % 10 + '0',
     };
 
-    bt_state_update_instance_data(state, chars);
+    uint32_t chars3d[SDL_arraysize(state->glyph3d_instance_data)] = U"What the fuck?";
+    bt_state_update_glyph2d_instance_data(state, chars2d);
+    bt_state_update_glyph3d_instance_data(state, chars3d);
 
     if (!bt_state_copy_data_to_transfer_buffer(
-            state, state->transfer_buffer_offsets[bt_gpu_buffer_instance],
-            sizeof(state->instance_data),
-            (unsigned char *)state->instance_data)) {
+            state,
+            state->transfer_buffer_offsets[bt_gpu_buffer_glyph2d_instance],
+            sizeof(state->glyph2d_instance_data),
+            (unsigned char *)state->glyph2d_instance_data)) {
+      return false;
+    }
+    if (!bt_state_copy_data_to_transfer_buffer(
+            state,
+            state->transfer_buffer_offsets[bt_gpu_buffer_glyph3d_instance],
+            sizeof(state->glyph3d_instance_data),
+            (unsigned char *)state->glyph3d_instance_data)) {
       return false;
     }
   }
@@ -550,10 +705,10 @@ static bool bt_state_update_fps(struct bt_state state[static 1]) {
   return true;
 }
 
-static void bt_state_copy_instance_data(struct bt_state state[static 1],
-                                        SDL_GPUCopyPass *copy_pass) {
-  constexpr enum bt_gpu_buffer buffer = bt_gpu_buffer_instance;
-
+static void
+bt_state_copy_transform_buffer_to_buffer(struct bt_state state[static 1],
+                                         SDL_GPUCopyPass *copy_pass,
+                                         enum bt_gpu_buffer buffer) {
   SDL_UploadToGPUBuffer(copy_pass,
                         &(SDL_GPUTransferBufferLocation){
                             .transfer_buffer = state->transfer_buffer,
@@ -566,9 +721,10 @@ static void bt_state_copy_instance_data(struct bt_state state[static 1],
                         true);
 }
 
-static void bt_state_render_text(struct bt_state state[static 1],
-                                 SDL_GPURenderPass *render_pass) {
-  SDL_BindGPUGraphicsPipeline(render_pass, state->graphics_pipeline);
+static void bt_state_render_text2d(struct bt_state state[static 1],
+                                   SDL_GPURenderPass *render_pass) {
+  SDL_BindGPUGraphicsPipeline(
+      render_pass, state->render_pipelines[bt_render_pipeline_glyph2d]);
   SDL_BindGPUVertexBuffers(
       render_pass, 0,
       (SDL_GPUBufferBinding[]){
@@ -577,7 +733,36 @@ static void bt_state_render_text(struct bt_state state[static 1],
               .offset = 0,
           },
           {
-              .buffer = state->buffers[bt_gpu_buffer_instance],
+              .buffer = state->buffers[bt_gpu_buffer_glyph2d_instance],
+              .offset = 0,
+          },
+      },
+      2);
+  SDL_BindGPUIndexBuffer(render_pass,
+                         &(SDL_GPUBufferBinding){
+                             .buffer = state->buffers[bt_gpu_buffer_index],
+                             .offset = 0,
+                         },
+                         SDL_GPU_INDEXELEMENTSIZE_16BIT);
+  SDL_BindGPUFragmentStorageBuffers(
+      render_pass, 0, &state->buffers[bt_gpu_buffer_font_curve], 2);
+  SDL_DrawGPUIndexedPrimitivesIndirect(
+      render_pass, state->buffers[bt_gpu_buffer_draw], 0, 1);
+}
+
+static void bt_state_render_text3d(struct bt_state state[static 1],
+                                   SDL_GPURenderPass *render_pass) {
+  SDL_BindGPUGraphicsPipeline(
+      render_pass, state->render_pipelines[bt_render_pipeline_glyph3d]);
+  SDL_BindGPUVertexBuffers(
+      render_pass, 0,
+      (SDL_GPUBufferBinding[]){
+          {
+              .buffer = state->buffers[bt_gpu_buffer_vertex],
+              .offset = 0,
+          },
+          {
+              .buffer = state->buffers[bt_gpu_buffer_glyph3d_instance],
               .offset = 0,
           },
       },
@@ -595,8 +780,6 @@ static void bt_state_render_text(struct bt_state state[static 1],
 }
 
 bool bt_state_render(struct bt_state state[static 1]) {
-  bool result = true;
-
   struct bt_uniforms uniform_data = {};
   bt_state_get_uniform_data(state, &uniform_data);
 
@@ -607,8 +790,13 @@ bool bt_state_render(struct bt_state state[static 1]) {
     return false;
   }
 
+  bool result = true;
+
   SDL_GPUCopyPass *const copy_pass = SDL_BeginGPUCopyPass(command_buffer);
-  bt_state_copy_instance_data(state, copy_pass);
+  bt_state_copy_transform_buffer_to_buffer(state, copy_pass,
+                                           bt_gpu_buffer_glyph2d_instance);
+  bt_state_copy_transform_buffer_to_buffer(state, copy_pass,
+                                           bt_gpu_buffer_glyph3d_instance);
   SDL_EndGPUCopyPass(copy_pass);
 
   SDL_GPUTexture *texture = nullptr;
@@ -624,8 +812,8 @@ bool bt_state_render(struct bt_state state[static 1]) {
     goto submit;
   }
 
-  SDL_PushGPUVertexUniformData(command_buffer, 1, uniform_data.proj_view.arr,
-                               sizeof(uniform_data.proj_view.arr));
+  SDL_PushGPUVertexUniformData(command_buffer, 1, &uniform_data,
+                               sizeof(uniform_data));
 
   SDL_GPURenderPass *render_pass =
       SDL_BeginGPURenderPass(command_buffer,
@@ -644,7 +832,8 @@ bool bt_state_render(struct bt_state state[static 1]) {
                                  },
                              },
                              1, nullptr);
-  bt_state_render_text(state, render_pass);
+  bt_state_render_text2d(state, render_pass);
+  bt_state_render_text3d(state, render_pass);
   SDL_EndGPURenderPass(render_pass);
 
 submit:
