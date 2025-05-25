@@ -2,7 +2,6 @@
 #include "helpers.h"
 #include "state.h"
 #include <SDL3/SDL_main.h>
-#include <stddef.h>
 
 SDL_AppResult SDL_AppInit(void **appstate, [[maybe_unused]] int argc,
                           [[maybe_unused]] char *argv[]) {

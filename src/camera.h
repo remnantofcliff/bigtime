@@ -2,7 +2,6 @@
 #define BT_CAMERA_H
 
 #include "input.h"
-#include "math.h"
 
 struct bt_camera {
   struct bt_vec3 eye;

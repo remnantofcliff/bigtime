@@ -5,8 +5,6 @@
 #include "game.h"
 #include <SDL3/SDL_events.h>
 #include <SDL3/SDL_gpu.h>
-#include <SDL3/SDL_video.h>
-#include <stddef.h>
 
 enum bt_gpu_buffer {
   bt_gpu_buffer_font_curve = 0,
@@ -58,6 +56,26 @@ struct bt_glyph3d_instance_data {
 constexpr size_t bt_glyph2d_max_instances = 512;
 constexpr size_t bt_glyph3d_max_instances = 256;
 
+constexpr SDL_GPUIndexedIndirectDrawCommand bt_draw_data_array[] = {
+    {
+        .num_indices = 6,
+        .num_instances = bt_glyph2d_max_instances,
+        .first_index = 0,
+        .vertex_offset = 0,
+        .first_instance = 0,
+    },
+    {
+        .num_indices = 6,
+        .num_instances = bt_glyph3d_max_instances,
+        .first_index = 0,
+        .vertex_offset = 0,
+        .first_instance = 0,
+    },
+};
+
+constexpr SDL_GPUTextureFormat bt_depth_format =
+    SDL_GPU_TEXTUREFORMAT_D16_UNORM;
+
 struct bt_state {
   SDL_Window *window;
   SDL_GPUDevice *gpu;
@@ -76,14 +94,18 @@ struct bt_state {
   uint32_t height;
 };
 
+// state_init.c
 bool bt_state_init(struct bt_state state[static 1]);
 void bt_state_deinit(struct bt_state state[static 1]);
+SDL_GPUTexture *bt_create_depth_texture(struct bt_state state[static 1]);
 
+// state_events.c
 void bt_state_handle_keyevent(struct bt_state state[static 1],
                               SDL_KeyboardEvent const event[static 1]);
 void bt_state_handle_mouse_motion_event(
     struct bt_state state[static 1],
     SDL_MouseMotionEvent const event[static 1]);
+// state_gfx.c
 bool bt_state_render(struct bt_state state[static 1]);
 
 #endif

@@ -3,7 +3,6 @@
 
 #include "math.h"
 #include <SDL3/SDL_mutex.h>
-#include <stdint.h>
 
 enum bt_event_type {
   bt_event_type_key,

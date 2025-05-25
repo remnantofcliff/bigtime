@@ -1,5 +1,4 @@
 #include "data.h"
-#include <SDL3/SDL_stdinc.h>
 
 // clang-format off
 static unsigned char const bt_glyph2d_vertex_spirv_bytes[] = {

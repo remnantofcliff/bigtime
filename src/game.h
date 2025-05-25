@@ -3,9 +3,7 @@
 
 #include "camera.h"
 #include "event_queue.h"
-#include "input.h"
 #include "time.h"
-#include <SDL3/SDL_mutex.h>
 
 struct bt_render_data {
   struct bt_vec3 camera_dir;
