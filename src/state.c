@@ -28,15 +28,22 @@ constexpr struct bt_vertex_data bt_vertex_data_array[] = {
 constexpr uint16_t bt_index_data_array[] = {0, 1, 2, 1, 3, 2};
 constexpr SDL_GPUIndexedIndirectDrawCommand bt_draw_data_array[] = {
     {
-
         .num_indices = 6,
-        .num_instances =
-            SDL_arraysize((struct bt_state){}.glyph3d_instance_data),
+        .num_instances = bt_glyph2d_max_instances,
+        .first_index = 0,
+        .vertex_offset = 0,
+        .first_instance = 0,
+    },
+    {
+        .num_indices = 6,
+        .num_instances = bt_glyph3d_max_instances,
         .first_index = 0,
         .vertex_offset = 0,
         .first_instance = 0,
     },
 };
+constexpr uint32_t bt_glyph2d_draw_offset = 0 * sizeof(*bt_draw_data_array);
+constexpr uint32_t bt_glyph3d_draw_offset = 1 * sizeof(*bt_draw_data_array);
 
 static bool bt_create_buffers(struct bt_state state[static 1]) {
   constexpr SDL_GPUBufferUsageFlags bt_gpu_buffer_flags[] = {
@@ -64,9 +71,9 @@ static bool bt_create_buffers(struct bt_state state[static 1]) {
       bt_font_curve_infos_byte_size;
   state->buffer_sizes[bt_gpu_buffer_vertex] = sizeof(bt_vertex_data_array);
   state->buffer_sizes[bt_gpu_buffer_glyph2d_instance] =
-      sizeof(state->glyph2d_instance_data);
+      bt_glyph2d_max_instances * sizeof(*state->glyph2d_instance_data);
   state->buffer_sizes[bt_gpu_buffer_glyph3d_instance] =
-      sizeof(state->glyph3d_instance_data);
+      bt_glyph3d_max_instances * sizeof(*state->glyph3d_instance_data);
   state->buffer_sizes[bt_gpu_buffer_index] = sizeof(bt_index_data_array);
   state->buffer_sizes[bt_gpu_buffer_draw] = sizeof(bt_draw_data_array);
 
@@ -463,6 +470,14 @@ bt_create_depth_texture(struct bt_state state[static 1]) {
 bool bt_state_init(struct bt_state state[static 1]) {
   SDL_zerop(state);
 
+  state->glyph2d_instance_data = SDL_calloc(
+      bt_glyph2d_max_instances, sizeof(*state->glyph2d_instance_data));
+  state->glyph3d_instance_data = SDL_calloc(
+      bt_glyph3d_max_instances, sizeof(*state->glyph3d_instance_data));
+  if (!(state->glyph2d_instance_data && state->glyph3d_instance_data)) {
+    BT_LOG_SDL_FAIL("Failed to allocate instance data");
+    return false;
+  }
   state->width = 800;
   state->height = 800;
 
@@ -546,6 +561,12 @@ void bt_state_deinit(struct bt_state state[static 1]) {
   }
   if (state->window) {
     SDL_DestroyWindow(state->window);
+  }
+  if (state->glyph2d_instance_data) {
+    SDL_free(state->glyph2d_instance_data);
+  }
+  if (state->glyph3d_instance_data) {
+    SDL_free(state->glyph3d_instance_data);
   }
   SDL_memset(state, 0, sizeof(*state));
 }
@@ -653,9 +674,9 @@ bt_state_copy_data_to_transfer_buffer(struct bt_state state[static 1],
 
 static void bt_state_update_glyph2d_instance_data(
     struct bt_state state[static 1],
-    uint32_t const chars[static SDL_arraysize(state->glyph2d_instance_data)]) {
+    uint32_t const chars[static bt_glyph2d_max_instances]) {
   float advance = 0.0f;
-  for (size_t i = 0; i < SDL_arraysize(state->glyph2d_instance_data); i += 1) {
+  for (size_t i = 0; i < bt_glyph2d_max_instances; i += 1) {
     struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
     struct bt_glyph2d_instance_data *instance_data =
         &state->glyph2d_instance_data[i];
@@ -673,13 +694,13 @@ static void bt_state_update_glyph2d_instance_data(
 }
 static void bt_state_update_glyph3d_instance_data(
     struct bt_state state[static 1],
-    uint32_t const chars[static SDL_arraysize(state->glyph3d_instance_data)]) {
+    uint32_t const chars[static bt_glyph3d_max_instances]) {
   float advance = 0.0f;
-  for (size_t i = 0; i < SDL_arraysize(state->glyph3d_instance_data); i += 1) {
+  float scale = 1.0f;
+  for (size_t i = 0; i < bt_glyph3d_max_instances; i += 1) {
     struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
     struct bt_glyph3d_instance_data *instance_data =
         &state->glyph3d_instance_data[i];
-    float scale = 1.0f;
     instance_data->scale[0] = scale;
     instance_data->scale[1] = scale;
     instance_data->scale[2] = 1.0f;
@@ -724,7 +745,7 @@ static bool bt_state_update_fps(struct bt_state state[static 1]) {
   struct bt_fps_report report = {};
   bt_fps_timer_increment_fps(&state->fps_timer, &report);
   if (report.did_update) {
-    uint32_t chars2d[SDL_arraysize(state->glyph2d_instance_data)] = {
+    uint32_t chars2d[bt_glyph2d_max_instances] = {
         'F',
         'P',
         'S',
@@ -737,22 +758,21 @@ static bool bt_state_update_fps(struct bt_state state[static 1]) {
         report.fps % 10 + '0',
     };
 
-    uint32_t chars3d[SDL_arraysize(state->glyph3d_instance_data)] =
-        U"What the fuck?";
+    uint32_t chars3d[bt_glyph3d_max_instances] = U"What the fuck?";
     bt_state_update_glyph2d_instance_data(state, chars2d);
     bt_state_update_glyph3d_instance_data(state, chars3d);
 
     if (!bt_state_copy_data_to_transfer_buffer(
             state,
             state->transfer_buffer_offsets[bt_gpu_buffer_glyph2d_instance],
-            sizeof(state->glyph2d_instance_data),
+            bt_glyph2d_max_instances * sizeof(*state->glyph2d_instance_data),
             (unsigned char *)state->glyph2d_instance_data)) {
       return false;
     }
     if (!bt_state_copy_data_to_transfer_buffer(
             state,
             state->transfer_buffer_offsets[bt_gpu_buffer_glyph3d_instance],
-            sizeof(state->glyph3d_instance_data),
+            bt_glyph3d_max_instances * sizeof(*state->glyph3d_instance_data),
             (unsigned char *)state->glyph3d_instance_data)) {
       return false;
     }
@@ -802,8 +822,9 @@ static void bt_state_render_text2d(struct bt_state state[static 1],
                          SDL_GPU_INDEXELEMENTSIZE_16BIT);
   SDL_BindGPUFragmentStorageBuffers(
       render_pass, 0, &state->buffers[bt_gpu_buffer_font_curve], 2);
-  SDL_DrawGPUIndexedPrimitivesIndirect(
-      render_pass, state->buffers[bt_gpu_buffer_draw], 0, 1);
+  SDL_DrawGPUIndexedPrimitivesIndirect(render_pass,
+                                       state->buffers[bt_gpu_buffer_draw],
+                                       bt_glyph2d_draw_offset, 1);
 }
 
 static void bt_state_render_text3d(struct bt_state state[static 1],
@@ -831,8 +852,9 @@ static void bt_state_render_text3d(struct bt_state state[static 1],
                          SDL_GPU_INDEXELEMENTSIZE_16BIT);
   SDL_BindGPUFragmentStorageBuffers(
       render_pass, 0, &state->buffers[bt_gpu_buffer_font_curve], 2);
-  SDL_DrawGPUIndexedPrimitivesIndirect(
-      render_pass, state->buffers[bt_gpu_buffer_draw], 0, 1);
+  SDL_DrawGPUIndexedPrimitivesIndirect(render_pass,
+                                       state->buffers[bt_gpu_buffer_draw],
+                                       bt_glyph3d_draw_offset, 1);
 }
 
 bool bt_state_render(struct bt_state state[static 1]) {

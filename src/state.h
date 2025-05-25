@@ -55,6 +55,9 @@ struct bt_glyph3d_instance_data {
   uint32_t c;
 };
 
+constexpr size_t bt_glyph2d_max_instances = 512;
+constexpr size_t bt_glyph3d_max_instances = 256;
+
 struct bt_state {
   SDL_Window *window;
   SDL_GPUDevice *gpu;
@@ -66,8 +69,8 @@ struct bt_state {
   uint32_t transfer_buffer_offsets[bt_gpu_buffer_count];
   SDL_GPUGraphicsPipeline *render_pipelines[bt_render_pipeline_count];
   struct bt_fps_timer fps_timer;
-  struct bt_glyph2d_instance_data glyph2d_instance_data[16];
-  struct bt_glyph3d_instance_data glyph3d_instance_data[16];
+  struct bt_glyph2d_instance_data *glyph2d_instance_data;
+  struct bt_glyph3d_instance_data *glyph3d_instance_data;
   struct bt_game game;
   uint32_t width;
   uint32_t height;

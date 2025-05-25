@@ -44,7 +44,7 @@ void main() {
     vec3 scale = in_scale;
     vec4 rotation = in_rotation;
     vec3 translation = in_translation;
-    switch (gl_VertexIndex) {
+    switch (gl_VertexIndex % 4) {
         case 0:
         pos = vec2(-0.5f, 0.5f);
         uv = vec2(0.0f, 0.0f);
