@@ -1,6 +1,6 @@
-#include "state.h"
 #include "data.h"
 #include "helpers.h"
+#include "state_private.h"
 
 constexpr uint32_t bt_glyph2d_draw_offset = 0 * sizeof(*bt_draw_data_array);
 constexpr uint32_t bt_glyph3d_draw_offset = 1 * sizeof(*bt_draw_data_array);

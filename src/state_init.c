@@ -1,6 +1,6 @@
 #include "data.h"
 #include "helpers.h"
-#include "state.h"
+#include "state_private.h"
 #include <SDL3/SDL_gpu.h>
 #include <stddef.h>
 
