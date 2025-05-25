@@ -43,7 +43,6 @@ SDL_AppResult SDL_AppEvent(void *appstate, SDL_Event *event) {
   case SDL_EVENT_MOUSE_BUTTON_DOWN:
     [[fallthrough]];
   case SDL_EVENT_MOUSE_BUTTON_UP:
-    // event->button.down;
     break;
   default:
     break;

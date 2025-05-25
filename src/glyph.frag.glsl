@@ -34,7 +34,8 @@ float compute_coverage(float inverse_diameter, vec2 p0, vec2 p1, vec2 p2) {
 
     if (abs(a.y) >= 1e-5) {
         float radicand = b.y * b.y - a.y * c.y;
-        if (radicand <= 0) return 0.0;
+        if (radicand <= 0)
+            return 0.0;
 
         float s = sqrt(radicand);
         t0 = (b.y - s) / a.y;
@@ -79,12 +80,18 @@ void main() {
         vec2 p0 = curve.p0 - uv;
         vec2 p1 = curve.p1 - uv;
         vec2 p2 = curve.p2 - uv;
-        vec3 ys = vec3(p0.y, p1.y, p2.y);
         float min_y = min(min(p0.y, p1.y), p2.y);
         float max_y = max(max(p0.y, p1.y), p2.y);
-        if (min_y > 0.0 || max_y < 0.0) continue;
+        if (min_y > 0.0 || max_y < 0.0) {
+            continue;
+        }
         alpha += compute_coverage(inverse_diameter, p0, p1, p2);
     }
 
-    out_color = vec4(color, alpha);
+    // Discard so that the transparent pixels of the quad don't overlap with
+    // other quads and cause depth issues
+    if (alpha <= 0.0)
+        discard;
+
+    out_color = vec4(color, min(alpha, 1.0));
 }

@@ -58,8 +58,9 @@ struct bt_glyph3d_instance_data {
 struct bt_state {
   SDL_Window *window;
   SDL_GPUDevice *gpu;
-  SDL_GPUShader *shaders[3];
+  SDL_GPUShader *shaders[bt_shader_count];
   SDL_GPUTransferBuffer *transfer_buffer;
+  SDL_GPUTexture *depth_texture;
   SDL_GPUBuffer *buffers[bt_gpu_buffer_count];
   uint32_t buffer_sizes[bt_gpu_buffer_count];
   uint32_t transfer_buffer_offsets[bt_gpu_buffer_count];

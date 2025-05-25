@@ -13,7 +13,7 @@ struct bt_vertex_data {
 
 constexpr struct bt_vertex_data bt_vertex_data_array[] = {
     {
-        .color = {0.25f, 0.5f, 1.0f},
+        .color = {1.0f, 1.0f, 1.0f},
     },
     {
         .color = {0.5f, 1.0f, 0.2f},
@@ -38,26 +38,27 @@ constexpr SDL_GPUIndexedIndirectDrawCommand bt_draw_data_array[] = {
     },
 };
 
-constexpr SDL_GPUBufferUsageFlags bt_gpu_buffer_flags[] = {
-    [bt_gpu_buffer_font_curve] = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
-    [bt_gpu_buffer_font_curve_info] = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
-    [bt_gpu_buffer_vertex] = SDL_GPU_BUFFERUSAGE_VERTEX,
-    [bt_gpu_buffer_glyph2d_instance] = SDL_GPU_BUFFERUSAGE_VERTEX,
-    [bt_gpu_buffer_glyph3d_instance] = SDL_GPU_BUFFERUSAGE_VERTEX,
-    [bt_gpu_buffer_index] = SDL_GPU_BUFFERUSAGE_INDEX,
-    [bt_gpu_buffer_draw] = SDL_GPU_BUFFERUSAGE_INDIRECT,
-};
-static char const *const bt_gpu_buffer_names[] = {
-    [bt_gpu_buffer_font_curve] = "font curve buffer",
-    [bt_gpu_buffer_font_curve_info] = "font curve info buffer",
-    [bt_gpu_buffer_vertex] = "vertex buffer",
-    [bt_gpu_buffer_glyph2d_instance] = "glyph2d instance buffer",
-    [bt_gpu_buffer_glyph3d_instance] = "glyph3d instance buffer",
-    [bt_gpu_buffer_index] = "index buffer",
-    [bt_gpu_buffer_draw] = "draw buffer",
-};
-
 static bool bt_create_buffers(struct bt_state state[static 1]) {
+  constexpr SDL_GPUBufferUsageFlags bt_gpu_buffer_flags[] = {
+      [bt_gpu_buffer_font_curve] = SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+      [bt_gpu_buffer_font_curve_info] =
+          SDL_GPU_BUFFERUSAGE_GRAPHICS_STORAGE_READ,
+      [bt_gpu_buffer_vertex] = SDL_GPU_BUFFERUSAGE_VERTEX,
+      [bt_gpu_buffer_glyph2d_instance] = SDL_GPU_BUFFERUSAGE_VERTEX,
+      [bt_gpu_buffer_glyph3d_instance] = SDL_GPU_BUFFERUSAGE_VERTEX,
+      [bt_gpu_buffer_index] = SDL_GPU_BUFFERUSAGE_INDEX,
+      [bt_gpu_buffer_draw] = SDL_GPU_BUFFERUSAGE_INDIRECT,
+  };
+  static char const *const bt_gpu_buffer_names[] = {
+      [bt_gpu_buffer_font_curve] = "font curve buffer",
+      [bt_gpu_buffer_font_curve_info] = "font curve info buffer",
+      [bt_gpu_buffer_vertex] = "vertex buffer",
+      [bt_gpu_buffer_glyph2d_instance] = "glyph2d instance buffer",
+      [bt_gpu_buffer_glyph3d_instance] = "glyph3d instance buffer",
+      [bt_gpu_buffer_index] = "index buffer",
+      [bt_gpu_buffer_draw] = "draw buffer",
+  };
+
   state->buffer_sizes[bt_gpu_buffer_font_curve] = bt_font_curves_byte_size;
   state->buffer_sizes[bt_gpu_buffer_font_curve_info] =
       bt_font_curve_infos_byte_size;
@@ -237,6 +238,9 @@ static bool bt_create_shaders(struct bt_state state[static 1]) {
   return true;
 }
 
+constexpr SDL_GPUTextureFormat bt_depth_format =
+    SDL_GPU_TEXTUREFORMAT_D16_UNORM;
+
 static bool bt_create_render_pipelines(struct bt_state state[static 1]) {
   constexpr enum bt_shader vertex_shaders[] = {
       [bt_render_pipeline_glyph2d] = bt_shader_glyph2d_vert,
@@ -365,53 +369,68 @@ static bool bt_create_render_pipelines(struct bt_state state[static 1]) {
       [bt_render_pipeline_glyph3d] = SDL_arraysize(glyph3d_vertex_attributes),
   };
 
+  constexpr bool enable_depths[] = {
+      [bt_render_pipeline_glyph2d] = false,
+      [bt_render_pipeline_glyph3d] = true,
+  };
+
   SDL_GPUTextureFormat format =
       SDL_GetGPUSwapchainTextureFormat(state->gpu, state->window);
-  for (enum bt_render_pipeline i = 0; i < bt_render_pipeline_count; ++i) {
-    state->render_pipelines[i] = SDL_CreateGPUGraphicsPipeline(
-        state->gpu,
-        &(SDL_GPUGraphicsPipelineCreateInfo){
-            .vertex_shader = state->shaders[vertex_shaders[i]],
-            .fragment_shader = state->shaders[fragment_shaders[i]],
-            .vertex_input_state =
-                {
-                    .vertex_buffer_descriptions = vertex_buffer_descriptions[i],
-                    .num_vertex_buffers = vertex_buffer_description_counts[i],
-                    .vertex_attributes = vertex_attributes[i],
-                    .num_vertex_attributes = vertex_attribute_counts[i],
-                },
-            .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
-            .rasterizer_state =
-                {
-                    .fill_mode = SDL_GPU_FILLMODE_FILL,
-                    .cull_mode = SDL_GPU_CULLMODE_BACK,
-                    .front_face = SDL_GPU_FRONTFACE_CLOCKWISE,
-                },
-            .target_info =
-                {
-                    .color_target_descriptions =
-                        (SDL_GPUColorTargetDescription[]){
-                            {
-                                .format = format,
-                                .blend_state =
-                                    {
-                                        .src_color_blendfactor =
-                                            SDL_GPU_BLENDFACTOR_SRC_ALPHA,
-                                        .dst_color_blendfactor =
-                                            SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
-                                        .color_blend_op = SDL_GPU_BLENDOP_ADD,
-                                        .src_alpha_blendfactor =
-                                            SDL_GPU_BLENDFACTOR_ONE,
-                                        .dst_alpha_blendfactor =
-                                            SDL_GPU_BLENDFACTOR_ZERO,
-                                        .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
-                                        .enable_blend = true,
-                                    },
-                            },
+  for (enum bt_render_pipeline i = 0; i < bt_render_pipeline_count; i += 1) {
+    SDL_GPUGraphicsPipelineCreateInfo create_info = {
+        .vertex_shader = state->shaders[vertex_shaders[i]],
+        .fragment_shader = state->shaders[fragment_shaders[i]],
+        .vertex_input_state =
+            {
+                .vertex_buffer_descriptions = vertex_buffer_descriptions[i],
+                .num_vertex_buffers = vertex_buffer_description_counts[i],
+                .vertex_attributes = vertex_attributes[i],
+                .num_vertex_attributes = vertex_attribute_counts[i],
+            },
+        .primitive_type = SDL_GPU_PRIMITIVETYPE_TRIANGLELIST,
+        .rasterizer_state =
+            {
+                .fill_mode = SDL_GPU_FILLMODE_FILL,
+                .cull_mode = SDL_GPU_CULLMODE_BACK,
+                .front_face = SDL_GPU_FRONTFACE_CLOCKWISE,
+            },
+        .target_info =
+            {
+                .color_target_descriptions =
+                    (SDL_GPUColorTargetDescription[]){
+                        {
+                            .format = format,
+                            .blend_state =
+                                {
+                                    .src_color_blendfactor =
+                                        SDL_GPU_BLENDFACTOR_SRC_ALPHA,
+                                    .dst_color_blendfactor =
+                                        SDL_GPU_BLENDFACTOR_ONE_MINUS_SRC_ALPHA,
+                                    .color_blend_op = SDL_GPU_BLENDOP_ADD,
+                                    .src_alpha_blendfactor =
+                                        SDL_GPU_BLENDFACTOR_ONE,
+                                    .dst_alpha_blendfactor =
+                                        SDL_GPU_BLENDFACTOR_ZERO,
+                                    .alpha_blend_op = SDL_GPU_BLENDOP_ADD,
+                                    .enable_blend = true,
+                                },
                         },
-                    .num_color_targets = 1,
-                },
-        });
+                    },
+                .num_color_targets = 1,
+            },
+    };
+    if (enable_depths[i]) {
+      create_info.depth_stencil_state = (SDL_GPUDepthStencilState){
+          .compare_op = SDL_GPU_COMPAREOP_LESS,
+          .write_mask = 0xFF,
+          .enable_depth_test = true,
+          .enable_depth_write = true,
+      };
+      create_info.target_info.depth_stencil_format = bt_depth_format;
+      create_info.target_info.has_depth_stencil_target = true;
+    }
+    state->render_pipelines[i] =
+        SDL_CreateGPUGraphicsPipeline(state->gpu, &create_info);
     if (!state->render_pipelines[i]) {
       BT_LOG_SDL_FAIL("Failed to create render pipeline");
       return false;
@@ -421,10 +440,34 @@ static bool bt_create_render_pipelines(struct bt_state state[static 1]) {
   return true;
 }
 
+[[nodiscard]] SDL_GPUTexture *
+bt_create_depth_texture(struct bt_state state[static 1]) {
+  SDL_GPUTexture *texture = SDL_CreateGPUTexture(
+      state->gpu, &(SDL_GPUTextureCreateInfo){
+                      .type = SDL_GPU_TEXTURETYPE_2D,
+                      .format = bt_depth_format,
+                      .usage = SDL_GPU_TEXTUREUSAGE_DEPTH_STENCIL_TARGET,
+                      .width = state->width,
+                      .height = state->height,
+                      .layer_count_or_depth = 1,
+                      .num_levels = 1,
+                      .sample_count = SDL_GPU_SAMPLECOUNT_1,
+                  });
+  if (!texture) {
+    BT_LOG_SDL_FAIL("Failed to create depth texture");
+  }
+
+  return texture;
+}
+
 bool bt_state_init(struct bt_state state[static 1]) {
   SDL_zerop(state);
 
-  state->window = SDL_CreateWindow("bigtime", 800, 600, SDL_WINDOW_RESIZABLE);
+  state->width = 800;
+  state->height = 800;
+
+  state->window = SDL_CreateWindow("bigtime", (int)state->width,
+                                   (int)state->height, SDL_WINDOW_RESIZABLE);
   if (!state->window) {
     BT_LOG_SDL_FAIL("Failed to create SDL window");
     return false;
@@ -434,8 +477,6 @@ bool bt_state_init(struct bt_state state[static 1]) {
     BT_LOG_SDL_FAIL("Failed to enable relative mouse mode");
   }
 
-  // SDL_SetRelativeMouseTransform();
-
   state->gpu = SDL_CreateGPUDevice(SDL_GPU_SHADERFORMAT_SPIRV, true, nullptr);
   if (!state->window) {
     BT_LOG_SDL_FAIL("Failed to create SDL GPUDevice");
@@ -444,6 +485,11 @@ bool bt_state_init(struct bt_state state[static 1]) {
 
   if (!SDL_ClaimWindowForGPUDevice(state->gpu, state->window)) {
     BT_LOG_SDL_FAIL("Failed to claim SDL window for GPUDevice");
+    return false;
+  }
+
+  state->depth_texture = bt_create_depth_texture(state);
+  if (!state->depth_texture) {
     return false;
   }
 
@@ -473,6 +519,7 @@ bool bt_state_init(struct bt_state state[static 1]) {
 void bt_state_deinit(struct bt_state state[static 1]) {
   bt_game_stop(&state->game);
 
+  SDL_WaitForGPUIdle(state->gpu);
   for (enum bt_render_pipeline i = 0; i < bt_render_pipeline_count; i += 1) {
     if (state->render_pipelines[i]) {
       SDL_ReleaseGPUGraphicsPipeline(state->gpu, state->render_pipelines[i]);
@@ -487,6 +534,9 @@ void bt_state_deinit(struct bt_state state[static 1]) {
     if (state->buffers[i]) {
       SDL_ReleaseGPUBuffer(state->gpu, state->buffers[i]);
     }
+  }
+  if (state->depth_texture) {
+    SDL_ReleaseGPUTexture(state->gpu, state->depth_texture);
   }
   if (state->transfer_buffer) {
     SDL_ReleaseGPUTransferBuffer(state->gpu, state->transfer_buffer);
@@ -607,15 +657,17 @@ static void bt_state_update_glyph2d_instance_data(
   float advance = 0.0f;
   for (size_t i = 0; i < SDL_arraysize(state->glyph2d_instance_data); i += 1) {
     struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
+    struct bt_glyph2d_instance_data *instance_data =
+        &state->glyph2d_instance_data[i];
     float scale = 0.1f;
-    state->glyph2d_instance_data[i].scale[0] = scale;
-    state->glyph2d_instance_data[i].scale[1] = scale;
-    state->glyph2d_instance_data[i].rotation = 0.0f;
-    state->glyph2d_instance_data[i].translation[0] =
+    instance_data->scale[0] = scale;
+    instance_data->scale[1] = scale;
+    instance_data->rotation = 0.0f;
+    instance_data->translation[0] =
         advance - 1.0f +
         (0.5f * scale) * ((float)state->height / (float)state->width);
-    state->glyph2d_instance_data[i].translation[1] = 0.0f + 1.0f - 0.5f * scale;
-    state->glyph2d_instance_data[i].c = chars[i];
+    instance_data->translation[1] = 0.0f + 1.0f - 0.5f * scale;
+    instance_data->c = chars[i];
     advance += metrics->advance * scale;
   }
 }
@@ -625,17 +677,20 @@ static void bt_state_update_glyph3d_instance_data(
   float advance = 0.0f;
   for (size_t i = 0; i < SDL_arraysize(state->glyph3d_instance_data); i += 1) {
     struct bt_font_metrics const *metrics = &bt_font_metrics[chars[i]];
-    state->glyph3d_instance_data[i].scale[0] = 1.0f;
-    state->glyph3d_instance_data[i].scale[1] = 1.0f;
-    state->glyph3d_instance_data[i].scale[2] = 1.0f;
-    state->glyph3d_instance_data[i].rotation[0] = 0.0f;
-    state->glyph3d_instance_data[i].rotation[1] = 0.0f;
-    state->glyph3d_instance_data[i].rotation[2] = 0.0f;
-    state->glyph3d_instance_data[i].rotation[3] = 1.0f;
-    state->glyph3d_instance_data[i].translation[0] = advance;
-    state->glyph3d_instance_data[i].translation[1] = 0.0f;
-    state->glyph3d_instance_data[i].translation[2] = 0.0f;
-    state->glyph3d_instance_data[i].c = chars[i];
+    struct bt_glyph3d_instance_data *instance_data =
+        &state->glyph3d_instance_data[i];
+    float scale = 1.0f;
+    instance_data->scale[0] = scale;
+    instance_data->scale[1] = scale;
+    instance_data->scale[2] = 1.0f;
+    instance_data->rotation[0] = 0.0f;
+    instance_data->rotation[1] = 0.0f;
+    instance_data->rotation[2] = 0.0f;
+    instance_data->rotation[3] = 1.0f;
+    instance_data->translation[0] = advance * scale;
+    instance_data->translation[1] = 0.0f;
+    instance_data->translation[2] = 0.0f;
+    instance_data->c = chars[i];
     advance += metrics->advance;
   }
 }
@@ -682,7 +737,8 @@ static bool bt_state_update_fps(struct bt_state state[static 1]) {
         report.fps % 10 + '0',
     };
 
-    uint32_t chars3d[SDL_arraysize(state->glyph3d_instance_data)] = U"What the fuck?";
+    uint32_t chars3d[SDL_arraysize(state->glyph3d_instance_data)] =
+        U"What the fuck?";
     bt_state_update_glyph2d_instance_data(state, chars2d);
     bt_state_update_glyph3d_instance_data(state, chars3d);
 
@@ -799,14 +855,27 @@ bool bt_state_render(struct bt_state state[static 1]) {
                                            bt_gpu_buffer_glyph3d_instance);
   SDL_EndGPUCopyPass(copy_pass);
 
+  uint32_t width;
+  uint32_t height;
   SDL_GPUTexture *texture = nullptr;
   if (!SDL_WaitAndAcquireGPUSwapchainTexture(command_buffer, state->window,
-                                             &texture, &state->width,
-                                             &state->height)) {
+                                             &texture, &width, &height)) {
     BT_LOG_SDL_FAIL("Failed to acquire swapchain texture");
     result = false;
     goto submit;
   }
+
+  if (width != state->width || height != state->height) {
+    state->width = width;
+    state->height = height;
+    SDL_GPUTexture *new_texture = bt_create_depth_texture(state);
+    if (new_texture) {
+      SDL_WaitForGPUIdle(state->gpu);
+      SDL_ReleaseGPUTexture(state->gpu, state->depth_texture);
+      state->depth_texture = new_texture;
+    }
+  }
+
   if (!texture) {
     result = false;
     goto submit;
@@ -831,9 +900,37 @@ bool bt_state_render(struct bt_state state[static 1]) {
                                      .store_op = SDL_GPU_STOREOP_STORE,
                                  },
                              },
+                             1,
+                             &(SDL_GPUDepthStencilTargetInfo){
+                                 .texture = state->depth_texture,
+                                 .clear_depth = 1.0f,
+                                 .load_op = SDL_GPU_LOADOP_CLEAR,
+                                 .store_op = SDL_GPU_STOREOP_STORE,
+                                 .stencil_load_op = SDL_GPU_LOADOP_DONT_CARE,
+                                 .stencil_store_op = SDL_GPU_STOREOP_DONT_CARE,
+                                 .cycle = true,
+                                 .clear_stencil = 0.0f,
+                             });
+  bt_state_render_text3d(state, render_pass);
+  SDL_EndGPURenderPass(render_pass);
+  render_pass =
+      SDL_BeginGPURenderPass(command_buffer,
+                             (SDL_GPUColorTargetInfo[]){
+                                 {
+                                     .texture = texture,
+                                     .clear_color =
+                                         (SDL_FColor){
+                                             .r = 0.0f,
+                                             .g = 0.0f,
+                                             .b = 0.0f,
+                                             .a = 1.0f,
+                                         },
+                                     .load_op = SDL_GPU_LOADOP_LOAD,
+                                     .store_op = SDL_GPU_STOREOP_STORE,
+                                 },
+                             },
                              1, nullptr);
   bt_state_render_text2d(state, render_pass);
-  bt_state_render_text3d(state, render_pass);
   SDL_EndGPURenderPass(render_pass);
 
 submit:
