@@ -1,5 +1,5 @@
 #include "game.h"
-#include "helpers.h"
+#include "logging.h"
 
 static void init(struct bt_game game[static 1]) {
   game->camera = bt_default_camera;

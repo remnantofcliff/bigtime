@@ -1,11 +1,19 @@
 #define SDL_MAIN_USE_CALLBACKS 1
-#include "helpers.h"
+
+#include "logging.h"
 #include "state.h"
 #include <SDL3/SDL_main.h>
+#include <locale.h>
 
 SDL_AppResult SDL_AppInit(void **appstate, [[maybe_unused]] int argc,
                           [[maybe_unused]] char *argv[]) {
+  bt_init_logger();
+
   SDL_SetAppMetadata("bigtime", "0.1.0", "org.remnantofcliff.bigtime");
+
+  if (!setlocale(LC_ALL, "en_US.UTF-8")) {
+    BT_LOG_ERR("Failed to set locale");
+  }
 
   if (!SDL_Init(SDL_INIT_VIDEO)) {
     BT_LOG_SDL_FAIL("Failed to initialize SDL");

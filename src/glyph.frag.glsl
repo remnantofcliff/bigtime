@@ -90,8 +90,9 @@ void main() {
 
     // Discard so that the transparent pixels of the quad don't overlap with
     // other quads and cause depth issues
-    if (alpha <= 0.0)
+    if (alpha <= 0.0) {
         discard;
+    }
 
     out_color = vec4(color, min(alpha, 1.0));
 }

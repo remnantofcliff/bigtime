@@ -1,5 +1,5 @@
 #include "event_queue.h"
-#include "helpers.h"
+#include "logging.h"
 
 bool bt_event_queue_init(struct bt_event_queue event_queue[static 1]) {
   SDL_zerop(event_queue);

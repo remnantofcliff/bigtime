@@ -1,5 +1,5 @@
 #include "data.h"
-#include "helpers.h"
+#include "logging.h"
 #include "state_private.h"
 #include <SDL3/SDL_gpu.h>
 #include <stddef.h>
@@ -477,6 +477,10 @@ bool bt_state_init(struct bt_state state[static 1]) {
     BT_LOG_SDL_FAIL("Failed to claim SDL window for GPUDevice");
     return false;
   }
+
+  // SDL_SetGPUSwapchainParameters(state->gpu, state->window,
+  //                               SDL_GPU_SWAPCHAINCOMPOSITION_SDR,
+  //                               SDL_GPU_PRESENTMODE_IMMEDIATE);
 
   state->depth_texture = bt_create_depth_texture(state);
   if (!state->depth_texture) {

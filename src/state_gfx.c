@@ -1,6 +1,7 @@
 #include "data.h"
-#include "helpers.h"
+#include "logging.h"
 #include "state_private.h"
+#include <uchar.h>
 
 constexpr uint32_t bt_glyph2d_draw_offset = 0 * sizeof(*bt_draw_data_array);
 constexpr uint32_t bt_glyph3d_draw_offset = 1 * sizeof(*bt_draw_data_array);
@@ -107,22 +108,28 @@ static bool bt_state_update_fps(struct bt_state state[static 1]) {
   struct bt_fps_report report = {};
   bt_fps_timer_increment_fps(&state->fps_timer, &report);
   if (report.did_update) {
-    uint32_t chars2d[bt_glyph2d_max_instances] = {
-        'F',
-        'P',
-        'S',
-        ':',
-        ' ',
-        report.fps % 100000 / 10000 + '0',
-        report.fps % 10000 / 1000 + '0',
-        report.fps % 1000 / 100 + '0',
-        report.fps % 100 / 10 + '0',
-        report.fps % 10 + '0',
-    };
+    uint32_t chars2d[bt_glyph2d_max_instances] = {};
+    char temp[SDL_arraysize(chars2d)] = {};
+    SDL_snprintf(temp, SDL_arraysize(temp), "FPS: %" PRIu64, report.fps);
 
-    uint32_t chars3d[bt_glyph3d_max_instances] = U"What the fuck?";
+    char *temp_p = temp;
+    char *temp_end = temp + SDL_arraysize(temp);
+    uint32_t *out_p = chars2d;
+    mbstate_t mbstate = {};
+    while (true) {
+      size_t n =
+          mbrtoc32(out_p, temp_p,
+                   (size_t)((uintptr_t)temp_end - (uintptr_t)temp_p), &mbstate);
+      if (n == 0) {
+        break;
+      }
+      if (n == (size_t)-1 || n == (size_t)-2) {
+        break;
+      }
+      temp_p += n;
+      out_p += 1;
+    }
     bt_state_update_glyph2d_instance_data(state, chars2d);
-    bt_state_update_glyph3d_instance_data(state, chars3d);
 
     if (!bt_state_copy_data_to_transfer_buffer(
             state,
@@ -131,6 +138,9 @@ static bool bt_state_update_fps(struct bt_state state[static 1]) {
             (unsigned char *)state->glyph2d_instance_data)) {
       return false;
     }
+
+    uint32_t chars3d[bt_glyph3d_max_instances] = U"3D TEXT TEST:D";
+    bt_state_update_glyph3d_instance_data(state, chars3d);
     if (!bt_state_copy_data_to_transfer_buffer(
             state,
             state->transfer_buffer_offsets[bt_gpu_buffer_glyph3d_instance],
@@ -280,7 +290,7 @@ bool bt_state_render(struct bt_state state[static 1]) {
                                              .b = 0.0f,
                                              .a = 1.0f,
                                          },
-                                     .load_op = SDL_GPU_LOADOP_CLEAR,
+                                     .load_op = SDL_GPU_LOADOP_DONT_CARE,
                                      .store_op = SDL_GPU_STOREOP_STORE,
                                  },
                              },
